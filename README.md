@@ -1,4 +1,21 @@
-# ⚡ Current Detection
+<p align="center">
+  <img src="assets/banner.svg" alt="Current Detection Banner" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/Yeamin-Talukder/Current-Detection/releases">
+    <img src="https://img.shields.io/github/v/release/Yeamin-Talukder/Current-Detection?style=for-the-badge&color=2ECC71&logo=github" alt="Latest Release" />
+  </a>
+  <a href="https://github.com/Yeamin-Talukder/Current-Detection/releases">
+    <img src="https://img.shields.io/github/downloads/Yeamin-Talukder/Current-Detection/total?style=for-the-badge&color=2ECC71&logo=github" alt="Total Downloads" />
+  </a>
+  <a href="https://github.com/Yeamin-Talukder/Current-Detection/stargazers">
+    <img src="https://img.shields.io/github/stars/Yeamin-Talukder/Current-Detection?style=for-the-badge&color=2ECC71&logo=github" alt="GitHub Stars" />
+  </a>
+  <a href="https://github.com/Yeamin-Talukder/Current-Detection/network/members">
+    <img src="https://img.shields.io/github/forks/Yeamin-Talukder/Current-Detection?style=for-the-badge&color=2C3E50&logo=github" alt="GitHub Forks" />
+  </a>
+</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />

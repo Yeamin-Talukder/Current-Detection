@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 250" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0D1B24" />
+      <stop offset="100%" stop-color="#1A2D3A" />
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2ECC71" />
+      <stop offset="100%" stop-color="#27AE60" />
+    </linearGradient>
+    <style>
+      .bg {
+        fill: url(#bgGrad);
+        rx: 16px;
+      }
+      .title {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-weight: 800;
+        font-size: 38px;
+        fill: #2ECC71;
+        letter-spacing: 2px;
+      }
+      .subtitle {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-weight: 500;
+        font-size: 16px;
+        fill: #BDC3C7;
+        letter-spacing: 0.5px;
+      }
+      .wifi-wave {
+        fill: none;
+        stroke: #2ECC71;
+        stroke-width: 4;
+        stroke-linecap: round;
+        opacity: 0.3;
+        transform-origin: 120px 145px;
+      }
+      .wave-1 {
+        animation: pulseWave 2.5s infinite 0s;
+      }
+      .wave-2 {
+        animation: pulseWave 2.5s infinite 0.8s;
+      }
+      .wave-3 {
+        animation: pulseWave 2.5s infinite 1.6s;
+      }
+      .lightning {
+        fill: url(#greenGrad);
+        filter: drop-shadow(0 0 8px rgba(46, 204, 113, 0.6));
+        animation: glow 1.5s ease-in-out infinite alternate;
+      }
+      @keyframes pulseWave {
+        0% {
+          stroke-dasharray: 0 300;
+          opacity: 0.1;
+          transform: scale(0.85);
+        }
+        50% {
+          opacity: 0.8;
+        }
+        100% {
+          stroke-dasharray: 300 300;
+          opacity: 0;
+          transform: scale(1.15);
+        }
+      }
+      @keyframes glow {
+        from {
+          filter: drop-shadow(0 0 4px rgba(46, 204, 113, 0.4));
+        }
+        to {
+          filter: drop-shadow(0 0 16px rgba(46, 204, 113, 0.9));
+        }
+      }
+    </style>
+  </defs>
+
+  <!-- Background Card -->
+  <rect width="800" height="250" class="bg" />
+
+  <!-- Decorative grid lines / technology feel -->
+  <path d="M 0,50 L 800,50 M 0,100 L 800,100 M 0,150 L 800,150 M 0,200 L 800,200" stroke="#2C3E50" stroke-width="0.5" opacity="0.3" />
+  <path d="M 100,0 L 100,250 M 200,0 L 200,250 M 300,0 L 300,250 M 400,0 L 400,250 M 500,0 L 500,250 M 600,0 L 600,250 M 700,0 L 700,250" stroke="#2C3E50" stroke-width="0.5" opacity="0.3" />
+
+  <!-- Animated WiFi Waves -->
+  <!-- Centered around the base of the lightning bolt at (120, 145) -->
+  <path d="M 95,120 A 35,35 0 0,1 145,120" class="wifi-wave wave-1" />
+  <path d="M 80,105 A 55,55 0 0,1 160,105" class="wifi-wave wave-2" />
+  <path d="M 65,90 A 75,75 0 0,1 175,90" class="wifi-wave wave-3" />
+
+  <!-- Lightning Bolt (Current / Power Symbol) -->
+  <path d="M 125,70 L 100,130 L 118,130 L 110,180 L 140,115 L 122,115 Z" class="lightning" />
+
+  <!-- Text Info -->
+  <text x="220" y="115" class="title">CURRENT DETECTION</text>
+  <text x="220" y="145" class="subtitle">WiFi-Based Electricity &amp; Load Shedding Monitor</text>
+  
+  <!-- Small Status Indicator Badge inside the banner -->
+  <g transform="translate(220, 165)">
+    <rect width="110" height="24" rx="12" fill="#2C3E50" />
+    <circle cx="16" cy="12" r="5" fill="#2ECC71" />
+    <text x="30" y="17" font-family="'Inter', sans-serif" font-size="11" font-weight="bold" fill="#2ECC71">MONITOR ON</text>
+  </g>
+</svg>
