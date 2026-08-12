@@ -1,0 +1,64 @@
+com.currentdetection.app-ui-geometry-release-0 C:\Users\mdyea\.gradle\caches\transforms-4\01506e3597085f29c9c7259e0de5a631\transformed\ui-geometry-release\res
+com.currentdetection.app-savedstate-1.2.1-1 C:\Users\mdyea\.gradle\caches\transforms-4\0d748030bd179ff7fc5466e0eda79ce8\transformed\savedstate-1.2.1\res
+com.currentdetection.app-customview-poolingcontainer-1.0.0-2 C:\Users\mdyea\.gradle\caches\transforms-4\0f17eced4983114a041dde2bc27d88ee\transformed\customview-poolingcontainer-1.0.0\res
+com.currentdetection.app-runtime-release-3 C:\Users\mdyea\.gradle\caches\transforms-4\12f7e7e8c5d0d43fd3f7a0f54151e583\transformed\runtime-release\res
+com.currentdetection.app-lifecycle-runtime-2.7.0-4 C:\Users\mdyea\.gradle\caches\transforms-4\17bad5301b73e9d05b623698cd1814be\transformed\lifecycle-runtime-2.7.0\res
+com.currentdetection.app-annotation-experimental-1.4.0-5 C:\Users\mdyea\.gradle\caches\transforms-4\1b0a964ff94656556b76819c28f85fbe\transformed\annotation-experimental-1.4.0\res
+com.currentdetection.app-animation-core-release-6 C:\Users\mdyea\.gradle\caches\transforms-4\1b56dd654f63788b1c1d033fc557ac72\transformed\animation-core-release\res
+com.currentdetection.app-material-icons-extended-release-7 C:\Users\mdyea\.gradle\caches\transforms-4\24ed73163178df2398370c142db8240e\transformed\material-icons-extended-release\res
+com.currentdetection.app-activity-compose-1.9.0-8 C:\Users\mdyea\.gradle\caches\transforms-4\2b0196124ca5c03d360942a4c0906592\transformed\activity-compose-1.9.0\res
+com.currentdetection.app-ui-tooling-release-9 C:\Users\mdyea\.gradle\caches\transforms-4\35d03480b30b3483cfa4da4ff844a57d\transformed\ui-tooling-release\res
+com.currentdetection.app-material-icons-core-release-10 C:\Users\mdyea\.gradle\caches\transforms-4\39c108de3bc9c0b01757a2ddcfbbc685\transformed\material-icons-core-release\res
+com.currentdetection.app-ui-tooling-preview-release-11 C:\Users\mdyea\.gradle\caches\transforms-4\3bef15b9e94b8f4548a9a87c3d104411\transformed\ui-tooling-preview-release\res
+com.currentdetection.app-navigation-common-2.7.7-12 C:\Users\mdyea\.gradle\caches\transforms-4\3c4030a19ddb2202c33fba2e8027c444\transformed\navigation-common-2.7.7\res
+com.currentdetection.app-work-runtime-2.9.0-13 C:\Users\mdyea\.gradle\caches\transforms-4\4773ad92eb1bff3483ba95037ae77bd4\transformed\work-runtime-2.9.0\res
+com.currentdetection.app-navigation-common-ktx-2.7.7-14 C:\Users\mdyea\.gradle\caches\transforms-4\4d0b533066ed04d96f7558bb8dcf4722\transformed\navigation-common-ktx-2.7.7\res
+com.currentdetection.app-ui-graphics-release-15 C:\Users\mdyea\.gradle\caches\transforms-4\4e99a71b414cc9386845c760bb253d7e\transformed\ui-graphics-release\res
+com.currentdetection.app-lifecycle-service-2.7.0-16 C:\Users\mdyea\.gradle\caches\transforms-4\506ae7f13683a31ad2da8bf8ce72fdb0\transformed\lifecycle-service-2.7.0\res
+com.currentdetection.app-room-runtime-2.6.1-17 C:\Users\mdyea\.gradle\caches\transforms-4\56244ba6afe75457894b25c599857ad8\transformed\room-runtime-2.6.1\res
+com.currentdetection.app-lifecycle-livedata-core-2.7.0-18 C:\Users\mdyea\.gradle\caches\transforms-4\57e4f0788bee796fd4d863cb97352c1e\transformed\lifecycle-livedata-core-2.7.0\res
+com.currentdetection.app-startup-runtime-1.1.1-19 C:\Users\mdyea\.gradle\caches\transforms-4\58fdd480a951a55242b45e75109bfac4\transformed\startup-runtime-1.1.1\res
+com.currentdetection.app-lifecycle-viewmodel-compose-2.7.0-20 C:\Users\mdyea\.gradle\caches\transforms-4\5e54b8848586fbd24994ca15d20a7dd8\transformed\lifecycle-viewmodel-compose-2.7.0\res
+com.currentdetection.app-navigation-runtime-2.7.7-21 C:\Users\mdyea\.gradle\caches\transforms-4\60007de9ac1886b8e0ceaac21f2f5807\transformed\navigation-runtime-2.7.7\res
+com.currentdetection.app-core-1.13.1-22 C:\Users\mdyea\.gradle\caches\transforms-4\63967cbc604f005f7522d35bad7201ad\transformed\core-1.13.1\res
+com.currentdetection.app-ui-unit-release-23 C:\Users\mdyea\.gradle\caches\transforms-4\6499898895e3be6d378948f39d846147\transformed\ui-unit-release\res
+com.currentdetection.app-ui-tooling-data-release-24 C:\Users\mdyea\.gradle\caches\transforms-4\6500df6a92ab77ceda69fb62f6efd277\transformed\ui-tooling-data-release\res
+com.currentdetection.app-animation-release-25 C:\Users\mdyea\.gradle\caches\transforms-4\6dcf4d5c6634f0433a94bf615bcb253d\transformed\animation-release\res
+com.currentdetection.app-lifecycle-viewmodel-2.7.0-26 C:\Users\mdyea\.gradle\caches\transforms-4\73e793a7382b43c9defd2093a91bdf2b\transformed\lifecycle-viewmodel-2.7.0\res
+com.currentdetection.app-emoji2-1.3.0-27 C:\Users\mdyea\.gradle\caches\transforms-4\7e638d3de4f32019e493d736d0e5c46f\transformed\emoji2-1.3.0\res
+com.currentdetection.app-datastore-1.0.0-28 C:\Users\mdyea\.gradle\caches\transforms-4\82dc6ee6b9c5fa4743ea13e7b8c79a6c\transformed\datastore-1.0.0\res
+com.currentdetection.app-savedstate-ktx-1.2.1-29 C:\Users\mdyea\.gradle\caches\transforms-4\86ca9b8cbd942cc1469f9a9fead46c1f\transformed\savedstate-ktx-1.2.1\res
+com.currentdetection.app-profileinstaller-1.3.1-30 C:\Users\mdyea\.gradle\caches\transforms-4\87761e84c059452c394d56309f837f50\transformed\profileinstaller-1.3.1\res
+com.currentdetection.app-material-ripple-release-31 C:\Users\mdyea\.gradle\caches\transforms-4\8dbb7e8f52d461203d8eafdd0686275a\transformed\material-ripple-release\res
+com.currentdetection.app-activity-1.9.0-32 C:\Users\mdyea\.gradle\caches\transforms-4\919a6119cc4177f3eb589eb864601202\transformed\activity-1.9.0\res
+com.currentdetection.app-navigation-runtime-ktx-2.7.7-33 C:\Users\mdyea\.gradle\caches\transforms-4\98bb9a3319cc9a0f9b2139e19a32081b\transformed\navigation-runtime-ktx-2.7.7\res
+com.currentdetection.app-lifecycle-livedata-2.7.0-34 C:\Users\mdyea\.gradle\caches\transforms-4\9ab474455724a7cbca42adcb8dcc1ea1\transformed\lifecycle-livedata-2.7.0\res
+com.currentdetection.app-lifecycle-viewmodel-ktx-2.7.0-35 C:\Users\mdyea\.gradle\caches\transforms-4\9d7d4c28e6890a3659daec8c6d550182\transformed\lifecycle-viewmodel-ktx-2.7.0\res
+com.currentdetection.app-material-release-36 C:\Users\mdyea\.gradle\caches\transforms-4\9e16b25900776c7f89fe27ccd12faa0b\transformed\material-release\res
+com.currentdetection.app-ui-util-release-37 C:\Users\mdyea\.gradle\caches\transforms-4\a319493217979d7128b1675b186b8715\transformed\ui-util-release\res
+com.currentdetection.app-room-ktx-2.6.1-38 C:\Users\mdyea\.gradle\caches\transforms-4\a3dc88e41e34c090c3f932990e5745bb\transformed\room-ktx-2.6.1\res
+com.currentdetection.app-sqlite-framework-2.4.0-39 C:\Users\mdyea\.gradle\caches\transforms-4\a42399782424fd166ab37238051b5ffe\transformed\sqlite-framework-2.4.0\res
+com.currentdetection.app-work-runtime-ktx-2.9.0-40 C:\Users\mdyea\.gradle\caches\transforms-4\a915e5759988d158bc8e743f8300a5bd\transformed\work-runtime-ktx-2.9.0\res
+com.currentdetection.app-lifecycle-process-2.7.0-41 C:\Users\mdyea\.gradle\caches\transforms-4\ab93e34a1ec8ea195b3dbefa40e7a717\transformed\lifecycle-process-2.7.0\res
+com.currentdetection.app-core-ktx-1.13.1-42 C:\Users\mdyea\.gradle\caches\transforms-4\ac617c6871a62fe0b0b1ba1cd748eba5\transformed\core-ktx-1.13.1\res
+com.currentdetection.app-lifecycle-viewmodel-savedstate-2.7.0-43 C:\Users\mdyea\.gradle\caches\transforms-4\b020a62d144cc3af9478b592f6fb3b86\transformed\lifecycle-viewmodel-savedstate-2.7.0\res
+com.currentdetection.app-lifecycle-livedata-core-ktx-2.7.0-44 C:\Users\mdyea\.gradle\caches\transforms-4\b357ccaa12eebf5763855a94175e9a8f\transformed\lifecycle-livedata-core-ktx-2.7.0\res
+com.currentdetection.app-foundation-release-45 C:\Users\mdyea\.gradle\caches\transforms-4\b9ebdf6a986b6fd0fc5da88e3fa4ee1c\transformed\foundation-release\res
+com.currentdetection.app-activity-ktx-1.9.0-46 C:\Users\mdyea\.gradle\caches\transforms-4\bc05eecb5ed305dfc46d31c17d3c7bd8\transformed\activity-ktx-1.9.0\res
+com.currentdetection.app-datastore-preferences-1.0.0-47 C:\Users\mdyea\.gradle\caches\transforms-4\cf2b5bbcc6c0cb1e1a1ec400a8bed6d5\transformed\datastore-preferences-1.0.0\res
+com.currentdetection.app-ui-release-48 C:\Users\mdyea\.gradle\caches\transforms-4\d2fc6bf3f8412fae3cdf9a04ebe63c41\transformed\ui-release\res
+com.currentdetection.app-ui-text-release-49 C:\Users\mdyea\.gradle\caches\transforms-4\d5d49fbd7453d2411aeb7d358007801a\transformed\ui-text-release\res
+com.currentdetection.app-navigation-compose-2.7.7-50 C:\Users\mdyea\.gradle\caches\transforms-4\df554e0cdde546bbc8f123ee405c4e0b\transformed\navigation-compose-2.7.7\res
+com.currentdetection.app-material3-release-51 C:\Users\mdyea\.gradle\caches\transforms-4\e06fd9526d9ad5106040fb22a1a42e77\transformed\material3-release\res
+com.currentdetection.app-lifecycle-runtime-ktx-2.7.0-52 C:\Users\mdyea\.gradle\caches\transforms-4\e704deae6c36e8f823ef30081146122d\transformed\lifecycle-runtime-ktx-2.7.0\res
+com.currentdetection.app-sqlite-2.4.0-53 C:\Users\mdyea\.gradle\caches\transforms-4\ed81f2ee628e2934d7d7e31815a875cc\transformed\sqlite-2.4.0\res
+com.currentdetection.app-runtime-saveable-release-54 C:\Users\mdyea\.gradle\caches\transforms-4\f0c87608dac6b3990359bec698491c74\transformed\runtime-saveable-release\res
+com.currentdetection.app-core-runtime-2.2.0-55 C:\Users\mdyea\.gradle\caches\transforms-4\f4807067cb8713d0b1c44c065386a25d\transformed\core-runtime-2.2.0\res
+com.currentdetection.app-foundation-layout-release-56 C:\Users\mdyea\.gradle\caches\transforms-4\fe7b05b9f8417131c97328a37b163a3b\transformed\foundation-layout-release\res
+com.currentdetection.app-pngs-57 W:\Mobile Application\Current Detection\app\build\generated\res\pngs\debug
+com.currentdetection.app-resValues-58 W:\Mobile Application\Current Detection\app\build\generated\res\resValues\debug
+com.currentdetection.app-packageDebugResources-59 W:\Mobile Application\Current Detection\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.currentdetection.app-packageDebugResources-60 W:\Mobile Application\Current Detection\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.currentdetection.app-debug-61 W:\Mobile Application\Current Detection\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.currentdetection.app-debug-62 W:\Mobile Application\Current Detection\app\src\debug\res
+com.currentdetection.app-main-63 W:\Mobile Application\Current Detection\app\src\main\res
