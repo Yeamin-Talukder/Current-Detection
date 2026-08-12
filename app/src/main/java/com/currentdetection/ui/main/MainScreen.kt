@@ -36,7 +36,7 @@ import com.currentdetection.ui.theme.PrimaryGreen
 import com.currentdetection.engine.PowerMonitoringService
 
 @Composable
-fun MainScreen(onNavigateToAddChecker: () -> Unit) {
+fun MainScreen(onNavigateToAddChecker: () -> Unit, onNavigateToUserManual: () -> Unit) {
     val navController = rememberNavController()
     val context = LocalContext.current
 
@@ -153,7 +153,10 @@ fun MainScreen(onNavigateToAddChecker: () -> Unit) {
                 HistoryScreen()
             }
             composable(BottomNavScreen.Settings.route) {
-                SettingsScreen(onManageCheckers = { navController.navigate(BottomNavScreen.Networks.route) })
+                SettingsScreen(
+                    onManageCheckers = { navController.navigate(BottomNavScreen.Networks.route) },
+                    onOpenUserManual = onNavigateToUserManual
+                )
             }
         }
     }

@@ -56,7 +56,8 @@ fun AppNavigation() {
         }
         composable(Screen.Main.route) {
             MainScreen(
-                onNavigateToAddChecker = { navController.navigate(Screen.AddChecker.route) }
+                onNavigateToAddChecker = { navController.navigate(Screen.AddChecker.route) },
+                onNavigateToUserManual = { navController.navigate(Screen.UserManual.route) }
             )
         }
         composable(Screen.AddChecker.route) {
@@ -64,6 +65,9 @@ fun AppNavigation() {
                 onBack = { navController.popBackStack() },
                 onCheckerAdded = { navController.popBackStack() }
             )
+        }
+        composable(Screen.UserManual.route) {
+            OnboardingScreen(onFinish = { navController.popBackStack() })
         }
     }
 }

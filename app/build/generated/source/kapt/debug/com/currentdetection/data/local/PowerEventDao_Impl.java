@@ -9,6 +9,7 @@ import androidx.room.EntityDeletionOrUpdateAdapter;
 import androidx.room.EntityInsertionAdapter;
 import androidx.room.RoomDatabase;
 import androidx.room.RoomSQLiteQuery;
+import androidx.room.SharedSQLiteStatement;
 import androidx.room.util.CursorUtil;
 import androidx.room.util.DBUtil;
 import androidx.sqlite.db.SupportSQLiteStatement;
@@ -37,6 +38,8 @@ public final class PowerEventDao_Impl implements PowerEventDao {
   private final EntityInsertionAdapter<PowerEventEntity> __insertionAdapterOfPowerEventEntity;
 
   private final EntityDeletionOrUpdateAdapter<PowerEventEntity> __updateAdapterOfPowerEventEntity;
+
+  private final SharedSQLiteStatement __preparedStmtOfClearAllEvents;
 
   public PowerEventDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
@@ -93,6 +96,14 @@ public final class PowerEventDao_Impl implements PowerEventDao {
         statement.bindLong(7, entity.getId());
       }
     };
+    this.__preparedStmtOfClearAllEvents = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "DELETE FROM power_events";
+        return _query;
+      }
+    };
   }
 
   @Override
@@ -128,6 +139,29 @@ public final class PowerEventDao_Impl implements PowerEventDao {
           return Unit.INSTANCE;
         } finally {
           __db.endTransaction();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object clearAllEvents(final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfClearAllEvents.acquire();
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfClearAllEvents.release(_stmt);
         }
       }
     }, $completion);
@@ -352,6 +386,58 @@ public final class PowerEventDao_Impl implements PowerEventDao {
         _statement.release();
       }
     });
+  }
+
+  @Override
+  public Object getAllEventsList(final Continuation<? super List<PowerEventEntity>> $completion) {
+    final String _sql = "SELECT * FROM power_events ORDER BY startTime DESC";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<List<PowerEventEntity>>() {
+      @Override
+      @NonNull
+      public List<PowerEventEntity> call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfStartTime = CursorUtil.getColumnIndexOrThrow(_cursor, "startTime");
+          final int _cursorIndexOfEndTime = CursorUtil.getColumnIndexOrThrow(_cursor, "endTime");
+          final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
+          final int _cursorIndexOfDetectedCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "detectedCheckerCount");
+          final int _cursorIndexOfTotalCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCheckerCount");
+          final List<PowerEventEntity> _result = new ArrayList<PowerEventEntity>(_cursor.getCount());
+          while (_cursor.moveToNext()) {
+            final PowerEventEntity _item;
+            final long _tmpId;
+            _tmpId = _cursor.getLong(_cursorIndexOfId);
+            final long _tmpStartTime;
+            _tmpStartTime = _cursor.getLong(_cursorIndexOfStartTime);
+            final Long _tmpEndTime;
+            if (_cursor.isNull(_cursorIndexOfEndTime)) {
+              _tmpEndTime = null;
+            } else {
+              _tmpEndTime = _cursor.getLong(_cursorIndexOfEndTime);
+            }
+            final Long _tmpDuration;
+            if (_cursor.isNull(_cursorIndexOfDuration)) {
+              _tmpDuration = null;
+            } else {
+              _tmpDuration = _cursor.getLong(_cursorIndexOfDuration);
+            }
+            final int _tmpDetectedCheckerCount;
+            _tmpDetectedCheckerCount = _cursor.getInt(_cursorIndexOfDetectedCheckerCount);
+            final int _tmpTotalCheckerCount;
+            _tmpTotalCheckerCount = _cursor.getInt(_cursorIndexOfTotalCheckerCount);
+            _item = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount);
+            _result.add(_item);
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
   }
 
   @NonNull

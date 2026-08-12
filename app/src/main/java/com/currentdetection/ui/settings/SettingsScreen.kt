@@ -26,7 +26,7 @@ import com.currentdetection.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onManageCheckers: () -> Unit, onExportHistory: () -> Unit = {}) {
+fun SettingsScreen(onManageCheckers: () -> Unit, onOpenUserManual: () -> Unit) {
     val context = LocalContext.current
     val database = AppDatabase.getDatabase(context)
     val settingsManager = SettingsManager(context)
@@ -86,7 +86,7 @@ fun SettingsScreen(onManageCheckers: () -> Unit, onExportHistory: () -> Unit = {
                         title = "Enable Monitoring",
                         subtitle = "Continuously check power status",
                         checked = monitoringEnabled,
-                        onCheckedChange = { viewModel.toggleMonitoring(it) }
+                        onCheckedChange = { viewModel.toggleMonitoring(context, it) }
                     )
                     SettingsDivider()
                     InfoSettingRow(
@@ -151,7 +151,7 @@ fun SettingsScreen(onManageCheckers: () -> Unit, onExportHistory: () -> Unit = {
                         title = "Daily Summary",
                         subtitle = "Receive a daily power report",
                         checked = dailySummary,
-                        onCheckedChange = { viewModel.toggleDailySummary(it) }
+                        onCheckedChange = { viewModel.toggleDailySummary(context, it) }
                     )
                 }
             }
@@ -166,7 +166,7 @@ fun SettingsScreen(onManageCheckers: () -> Unit, onExportHistory: () -> Unit = {
                         icon = Icons.Outlined.FileDownload,
                         title = "Export History",
                         subtitle = "Save outage log as CSV",
-                        onClick = onExportHistory
+                        onClick = { viewModel.exportHistory(context) }
                     )
                     SettingsDivider()
                     ActionSettingRow(
@@ -174,7 +174,7 @@ fun SettingsScreen(onManageCheckers: () -> Unit, onExportHistory: () -> Unit = {
                         title = "Clear History",
                         subtitle = "Remove all recorded outages",
                         titleColor = PowerOff,
-                        onClick = { }
+                        onClick = { viewModel.clearHistory() }
                     )
                 }
             }
@@ -195,6 +195,13 @@ fun SettingsScreen(onManageCheckers: () -> Unit, onExportHistory: () -> Unit = {
                         icon = Icons.Outlined.Bolt,
                         title = "Detection Method",
                         value = "Hybrid BSSID Scan"
+                    )
+                    SettingsDivider()
+                    ActionSettingRow(
+                        icon = Icons.Outlined.MenuBook,
+                        title = "User Manual",
+                        subtitle = "Learn how the app works",
+                        onClick = onOpenUserManual
                     )
                 }
             }

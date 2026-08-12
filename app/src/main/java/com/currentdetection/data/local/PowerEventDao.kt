@@ -22,6 +22,12 @@ interface PowerEventDao {
     @Query("SELECT * FROM power_events WHERE startTime >= :startTime AND startTime < :endTime ORDER BY startTime DESC")
     fun getEventsInRange(startTime: Long, endTime: Long): Flow<List<PowerEventEntity>>
 
+    @Query("SELECT * FROM power_events ORDER BY startTime DESC")
+    suspend fun getAllEventsList(): List<PowerEventEntity>
+
+    @Query("DELETE FROM power_events")
+    suspend fun clearAllEvents()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvent(event: PowerEventEntity): Long
 

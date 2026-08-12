@@ -15,14 +15,16 @@ import java.util.Date
 import java.util.Locale
 
 data class DailyReport(
-    val dateLabel: String,          // e.g. "Today", "Yesterday", "12 Aug"
+    val dateLabel: String,
     val dateMs: Long,               // midnight of that day
-    val outages: List<PowerEventEntity>,
-    val totalOutageMs: Long,
-    val monitoredMs: Long,          // actual monitored time that day (excludes pre-install)
+    val completedOutages: List<PowerEventEntity>, // outages with endTime
+    val activeOutage: PowerEventEntity?,          // ongoing outage (null if none)
+    val totalOutageMs: Long,        // includes partial active outage up to now
+    val monitoredMs: Long,          // actual monitored time (excludes pre-install unknown)
     val totalOnTimeMs: Long,
     val availabilityPct: Float,
-    val isFirstDay: Boolean         // day of first install
+    val isFirstDay: Boolean,        // day of first install
+    val isToday: Boolean
 )
 
 class HistoryViewModel(
@@ -45,48 +47,56 @@ class HistoryViewModel(
 
         val now = System.currentTimeMillis()
         val dayFormat = SimpleDateFormat("d MMM", Locale.getDefault())
+        val todayStart = getDayStart(now)
 
-        // Determine the range of days: from first event or firstRunTime to today
+        // Determine earliest day to show
         val earliest = minOf(
             events.minOfOrNull { it.startTime } ?: now,
             if (firstRunTime > 0L) firstRunTime else now
         )
         val earliestDayStart = getDayStart(earliest)
-        val todayStart = getDayStart(now)
 
-        // Build a list of all days from earliest to today
+        // Build day list earliest → today
         val days = mutableListOf<Long>()
         var cursor = earliestDayStart
         while (cursor <= todayStart) {
             days.add(cursor)
-            cursor += 86_400_000L // +1 day
+            cursor += 86_400_000L
         }
 
         return days.reversed().map { dayStart ->
             val dayEnd = dayStart + 86_400_000L
             val dayNow = minOf(dayEnd, now)
+            val isToday = dayStart == todayStart
 
-            // First day of install — monitored time starts at firstRunTime
-            val isFirstDay = firstRunTime in dayStart until dayEnd
+            // Install-day handling
+            val isFirstDay = firstRunTime > 0L && firstRunTime in dayStart until dayEnd
             val monitoringStart = if (isFirstDay && firstRunTime > dayStart) firstRunTime else dayStart
             val monitoredMs = maxOf(0L, dayNow - monitoringStart)
 
-            // Outages in this day (completed only for history)
-            val dayOutages = events.filter { event ->
-                val evEnd = event.endTime ?: Long.MAX_VALUE
-                event.startTime < dayEnd && evEnd > dayStart && event.endTime != null
+            // Completed outages that overlap this day
+            val completedOutages = events.filter { event ->
+                event.endTime != null &&
+                event.startTime < dayEnd &&
+                event.endTime > dayStart
             }.sortedBy { it.startTime }
 
+            // Active (ongoing) outage for today only
+            val activeOutage = if (isToday) {
+                events.firstOrNull { it.endTime == null }
+            } else null
+
+            // Sum outage time within this day window
             var totalOutageMs = 0L
-            dayOutages.forEach { event ->
-                val start = maxOf(event.startTime, dayStart)
-                val end = minOf(event.endTime!!, dayNow)
-                totalOutageMs += maxOf(0L, end - start)
+            (completedOutages + listOfNotNull(activeOutage)).forEach { event ->
+                val eStart = maxOf(event.startTime, monitoringStart)
+                val eEnd = minOf(event.endTime ?: dayNow, dayNow)
+                if (eEnd > eStart) totalOutageMs += eEnd - eStart
             }
 
             val totalOnTimeMs = maxOf(0L, monitoredMs - totalOutageMs)
             val availabilityPct = if (monitoredMs > 0L)
-                (totalOnTimeMs.toFloat() / monitoredMs.toFloat()) * 100f
+                (totalOnTimeMs.toFloat() / monitoredMs.toFloat() * 100f).coerceIn(0f, 100f)
             else 0f
 
             val dateLabel = when (dayStart) {
@@ -98,14 +108,16 @@ class HistoryViewModel(
             DailyReport(
                 dateLabel = dateLabel,
                 dateMs = dayStart,
-                outages = dayOutages,
+                completedOutages = completedOutages,
+                activeOutage = activeOutage,
                 totalOutageMs = totalOutageMs,
                 monitoredMs = monitoredMs,
                 totalOnTimeMs = totalOnTimeMs,
                 availabilityPct = availabilityPct,
-                isFirstDay = isFirstDay
+                isFirstDay = isFirstDay,
+                isToday = isToday
             )
-        }.filter { it.monitoredMs > 0L || it.outages.isNotEmpty() }
+        }.filter { it.monitoredMs > 0L || it.completedOutages.isNotEmpty() || it.activeOutage != null }
     }
 
     private fun getDayStart(timeMs: Long): Long {
