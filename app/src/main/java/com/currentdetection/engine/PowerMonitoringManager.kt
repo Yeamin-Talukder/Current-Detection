@@ -16,8 +16,7 @@ class PowerMonitoringManager(
     private val networkRepository: NetworkRepository,
     private val eventManager: EventManager,
     private val notificationManager: AppNotificationManager,
-    private val networkMatcher: NetworkMatcher = NetworkMatcher(),
-    private val powerStateEngine: PowerStateEngine = PowerStateEngine()
+    private val powerDetectionEngine: PowerDetectionEngine = PowerDetectionEngine(wifiScanner)
 ) {
     private var monitoringJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -43,8 +42,8 @@ class PowerMonitoringManager(
 
             // Polling loop to accommodate Wi-Fi scan throttling and scan initiation
             while (true) {
-                performScan()
-                delay(30_000) // 30 seconds interval between forced scans
+                performDetection()
+                delay(30_000) // 30 seconds interval between checks
             }
         }
     }
@@ -54,7 +53,7 @@ class PowerMonitoringManager(
         monitoringJob = null
     }
 
-    private suspend fun performScan() {
+    private suspend fun performDetection() {
         try {
             val registeredNetworks = networkRepository.getAllNetworks().first()
             if (registeredNetworks.isEmpty()) {
@@ -62,19 +61,22 @@ class PowerMonitoringManager(
                 return
             }
 
-            // For simplicity, we just collect one result and process it
-            val scanResults = wifiScanner.scanNearbyNetworks().first()
-            val matchResult = networkMatcher.match(scanResults, registeredNetworks)
-            val newState = powerStateEngine.determineState(matchResult, scanSuccessful = true)
+            val detectionResult = powerDetectionEngine.detectPowerState(registeredNetworks)
+            val detectedState = detectionResult.state
+            
+            // Map POSSIBLE_POWER_OFF to POWER_OFF for the event manager, which handles the confirmation delays
+            val eventState = if (detectedState == PowerState.POSSIBLE_POWER_OFF) PowerState.POWER_OFF else detectedState
 
             eventManager.processNewState(
-                newState = newState,
-                activeCheckerCount = matchResult.detectionCount,
-                totalCheckerCount = matchResult.totalRegistered
+                newState = eventState,
+                activeCheckerCount = detectionResult.detectedBssids.size,
+                totalCheckerCount = registeredNetworks.size,
+                detectedBssids = detectionResult.detectedBssids,
+                scanPerformed = detectionResult.scanPerformed
             )
 
         } catch (e: Exception) {
-            eventManager.processNewState(PowerState.UNKNOWN)
+            eventManager.processNewState(PowerState.UNKNOWN, detectedBssids = emptySet(), scanPerformed = false)
         }
     }
 }

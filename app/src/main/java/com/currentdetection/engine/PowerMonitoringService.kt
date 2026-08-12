@@ -19,7 +19,7 @@ class PowerMonitoringService : Service() {
         
         val database = AppDatabase.getDatabase(this)
         val networkRepository = NetworkRepositoryImpl(database.networkDao())
-        val eventManager = EventManager(database.powerEventDao())
+        val eventManager = EventManager.getInstance(database.powerEventDao())
         val wifiScanner = WifiScannerImpl(this)
         
         monitoringManager = PowerMonitoringManager(

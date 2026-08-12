@@ -19,6 +19,7 @@ data class ScanResultItem(
 
 interface WifiScanner {
     fun scanNearbyNetworks(): Flow<List<ScanResultItem>>
+    fun getConnectedBssid(): String?
 }
 
 class WifiScannerImpl(private val context: Context) : WifiScanner {
@@ -66,6 +67,20 @@ class WifiScannerImpl(private val context: Context) : WifiScanner {
             }
         } catch (e: SecurityException) {
             emptyList()
+        }
+    }
+
+    override fun getConnectedBssid(): String? {
+        return try {
+            val info = wifiManager.connectionInfo
+            val bssid = info?.bssid
+            if (bssid != null && bssid != "02:00:00:00:00:00" && bssid != "<unknown ssid>") {
+                bssid
+            } else {
+                null
+            }
+        } catch (e: SecurityException) {
+            null
         }
     }
 }

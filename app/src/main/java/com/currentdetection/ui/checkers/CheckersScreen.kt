@@ -1,43 +1,46 @@
 package com.currentdetection.ui.checkers
 
-import androidx.compose.animation.animateContentSize
+import android.net.wifi.WifiManager
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.outlined.WifiFind
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.currentdetection.data.local.AppDatabase
 import com.currentdetection.data.local.entities.NetworkEntity
 import com.currentdetection.ui.components.PrimaryButton
 import com.currentdetection.ui.components.pressClickEffect
-import com.currentdetection.ui.theme.BackgroundColor
-import com.currentdetection.ui.theme.PrimaryGreen
+import com.currentdetection.ui.theme.*
 import kotlinx.coroutines.launch
 
 @Composable
-fun AnimatedWifiIcon(modifier: Modifier = Modifier, tint: Color = MaterialTheme.colorScheme.primary) {
+fun AnimatedWifiIcon(modifier: Modifier = Modifier, tint: Color = PrimaryGreen) {
     val infiniteTransition = rememberInfiniteTransition(label = "wifi_pulse")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
+            animation = tween(1200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "wifi_alpha"
@@ -58,6 +61,18 @@ fun CheckersScreen(onBack: () -> Unit, onAddChecker: () -> Unit) {
     val networks by dao.getAllNetworks().collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
 
+    // Get currently connected BSSID
+    val wifiManager = remember {
+        context.applicationContext.getSystemService(android.content.Context.WIFI_SERVICE) as WifiManager
+    }
+    val connectedBssid = remember {
+        try {
+            val info = wifiManager.connectionInfo
+            val bssid = info?.bssid
+            if (bssid != null && bssid != "02:00:00:00:00:00" && bssid != "<unknown ssid>") bssid else null
+        } catch (e: SecurityException) { null }
+    }
+
     Scaffold(
         containerColor = BackgroundColor,
         floatingActionButton = {
@@ -65,9 +80,10 @@ fun CheckersScreen(onBack: () -> Unit, onAddChecker: () -> Unit) {
                 FloatingActionButton(
                     onClick = onAddChecker,
                     containerColor = PrimaryGreen,
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.pressClickEffect(onAddChecker)
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Power Checker", tint = Color(0xFF121212)) // Dark icon
+                    Icon(Icons.Default.Add, contentDescription = "Add", tint = BackgroundColor)
                 }
             }
         }
@@ -81,14 +97,15 @@ fun CheckersScreen(onBack: () -> Unit, onAddChecker: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 "Current Identifiers",
-                style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "Wi-Fi networks used to detect\nwhether current is available.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                style = MaterialTheme.typography.bodyMedium,
+                color = MutedText
             )
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -98,22 +115,39 @@ fun CheckersScreen(onBack: () -> Unit, onAddChecker: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    AnimatedWifiIcon(
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    // Floating animation
+                    val infiniteTransition = rememberInfiniteTransition(label = "float")
+                    val offsetY by infiniteTransition.animateFloat(
+                        initialValue = -8f,
+                        targetValue = 8f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(2000, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "float_y"
+                    )
+
+                    Icon(
+                        Icons.Outlined.WifiFind,
+                        contentDescription = null,
+                        tint = MutedText,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .offset(y = offsetY.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         "No Networks Added",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onBackground
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Add Wi-Fi networks from your\nbuilding to use them as\nCurrent Identifiers.",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MutedText
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     PrimaryButton(
@@ -124,23 +158,31 @@ fun CheckersScreen(onBack: () -> Unit, onAddChecker: () -> Unit) {
                 }
             } else {
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    items(networks, key = { it.id }) { network ->
-                        CheckerCard(
-                            network = network,
-                            onDelete = {
-                                coroutineScope.launch {
-                                    dao.deleteNetwork(network)
+                    itemsIndexed(networks, key = { _, item -> item.id }) { index, network ->
+                        val isConnected = connectedBssid != null &&
+                                network.bssid.equals(connectedBssid, ignoreCase = true)
+
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = slideInVertically(
+                                initialOffsetY = { it / 2 },
+                                animationSpec = tween(400, delayMillis = index * 60)
+                            ) + fadeIn(tween(400, delayMillis = index * 60))
+                        ) {
+                            CheckerCard(
+                                network = network,
+                                isConnected = isConnected,
+                                onDelete = {
+                                    coroutineScope.launch { dao.deleteNetwork(network) }
+                                },
+                                onEdit = { newName ->
+                                    coroutineScope.launch { dao.updateNetwork(network.copy(displayName = newName)) }
                                 }
-                            },
-                            onEdit = { newName ->
-                                coroutineScope.launch {
-                                    dao.updateNetwork(network.copy(displayName = newName))
-                                }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -149,67 +191,117 @@ fun CheckersScreen(onBack: () -> Unit, onAddChecker: () -> Unit) {
 }
 
 @Composable
-fun CheckerCard(network: NetworkEntity, onDelete: () -> Unit, onEdit: (String) -> Unit) {
+fun CheckerCard(
+    network: NetworkEntity,
+    isConnected: Boolean,
+    onDelete: () -> Unit,
+    onEdit: (String) -> Unit
+) {
     var showMenu by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var editName by remember { mutableStateOf(network.displayName) }
+
+    val borderColor = if (isConnected) PrimaryGreen.copy(alpha = 0.3f) else CardBorderColor.copy(alpha = 0.2f)
+    val accentColor = if (isConnected) PrimaryGreen else MutedText.copy(alpha = 0.4f)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize()
-            .pressClickEffect { }, // Empty click just for the press animation
+            .pressClickEffect { },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, PrimaryGreen.copy(alpha = 0.2f)), // Subtle green highlight
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+        border = BorderStroke(1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AnimatedWifiIcon(tint = PrimaryGreen)
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(network.displayName, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.weight(1f))
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(modifier = Modifier.fillMaxWidth()) {
+            // Left accent bar
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(if (isConnected) 100.dp else 90.dp)
+                    .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+                    .background(accentColor)
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 14.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Wifi,
+                        contentDescription = null,
+                        tint = if (isConnected) PrimaryGreen else MutedText,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        network.displayName,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Box {
+                        IconButton(onClick = { showMenu = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More", tint = MutedText, modifier = Modifier.size(18.dp))
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.background(SurfaceLighter)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Edit Name", color = Color.White) },
+                                onClick = {
+                                    showMenu = false
+                                    editName = network.displayName
+                                    showEditDialog = true
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete", color = PowerOff) },
+                                onClick = {
+                                    showMenu = false
+                                    onDelete()
+                                }
+                            )
+                        }
                     }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Edit Name", color = MaterialTheme.colorScheme.onSurface) },
-                            onClick = {
-                                showMenu = false
-                                editName = network.displayName
-                                showEditDialog = true
-                            }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            network.ssid,
+                            color = MutedText,
+                            style = MaterialTheme.typography.bodyMedium
                         )
-                        DropdownMenuItem(
-                            text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                showMenu = false
-                                onDelete()
-                            }
+                        Text(
+                            network.bssid,
+                            color = MutedText.copy(alpha = 0.7f),
+                            style = MaterialTheme.typography.bodySmall
                         )
+                    }
+
+                    if (isConnected) {
+                        ConnectedBadge()
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(network.ssid, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(network.bssid, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
     }
 
     if (showEditDialog) {
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
-            title = { Text("Edit Name", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.headlineMedium) },
+            title = {
+                Text("Edit Name", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            },
             text = {
                 OutlinedTextField(
                     value = editName,
@@ -217,9 +309,13 @@ fun CheckerCard(network: NetworkEntity, onDelete: () -> Unit, onEdit: (String) -
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                    )
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = PrimaryGreen,
+                        unfocusedBorderColor = CardBorderColor,
+                        cursorColor = PrimaryGreen
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 )
             },
             confirmButton = {
@@ -227,16 +323,54 @@ fun CheckerCard(network: NetworkEntity, onDelete: () -> Unit, onEdit: (String) -
                     onEdit(editName)
                     showEditDialog = false
                 }) {
-                    Text("Save", color = PrimaryGreen, style = MaterialTheme.typography.titleMedium)
+                    Text("Save", color = PrimaryGreen, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEditDialog = false }) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Cancel", color = MutedText)
                 }
             },
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            containerColor = SurfaceColor,
             shape = RoundedCornerShape(20.dp)
+        )
+    }
+}
+
+@Composable
+fun ConnectedBadge() {
+    val infiniteTransition = rememberInfiniteTransition(label = "badge_pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.7f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "badge_alpha"
+    )
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(PrimaryGreen.copy(alpha = 0.1f * alpha))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(PrimaryGreen.copy(alpha = alpha))
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            "CONNECTED",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = PrimaryGreen.copy(alpha = alpha),
+            letterSpacing = 1.sp,
+            fontSize = 10.sp
         )
     }
 }

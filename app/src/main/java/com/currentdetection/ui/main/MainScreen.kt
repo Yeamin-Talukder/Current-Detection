@@ -9,8 +9,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wifi
+import com.currentdetection.ui.history.HistoryScreen
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -83,6 +85,7 @@ fun MainScreen(onNavigateToAddChecker: () -> Unit) {
     val items = listOf(
         BottomNavScreen.Home to Icons.Filled.Home,
         BottomNavScreen.Networks to Icons.Filled.Wifi,
+        BottomNavScreen.History to Icons.Filled.History,
         BottomNavScreen.Settings to Icons.Filled.Settings
     )
 
@@ -145,6 +148,9 @@ fun MainScreen(onNavigateToAddChecker: () -> Unit) {
                     onBack = { },
                     onAddChecker = onNavigateToAddChecker
                 )
+            }
+            composable(BottomNavScreen.History.route) {
+                HistoryScreen()
             }
             composable(BottomNavScreen.Settings.route) {
                 SettingsScreen(onManageCheckers = { navController.navigate(BottomNavScreen.Networks.route) })

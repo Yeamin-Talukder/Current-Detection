@@ -8,13 +8,10 @@ import com.currentdetection.data.local.entities.NetworkEntity
 import com.currentdetection.data.local.entities.PowerEventEntity
 import com.currentdetection.domain.repository.NetworkRepository
 import com.currentdetection.engine.EventManager
-import com.currentdetection.engine.NetworkMatcher
 import com.currentdetection.engine.PowerState
-import com.currentdetection.wifi.WifiScanner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import java.util.*
 
 data class PowerStats(
@@ -27,21 +24,42 @@ data class PowerStats(
     val peakOutagePeriod: String = "N/A"
 )
 
+enum class NetworkScanState {
+    ACTIVE,
+    OFFLINE,
+    NOT_SCANNED
+}
+
 data class NetworkStatus(
     val name: String,
-    val isActive: Boolean
-)
+    val state: NetworkScanState
+) {
+    val isActive: Boolean get() = state == NetworkScanState.ACTIVE
+}
+
+data class OnSession(
+    val startMs: Long,
+    val endMs: Long
+) {
+    val durationMs: Long get() = endMs - startMs
+}
+
+// Describes the multi-step scan animation shown to the user
+sealed class ScanPhase {
+    object Idle : ScanPhase()
+    object CheckingConnected : ScanPhase()
+    object ScanningNearby : ScanPhase()
+    data class MatchingBssids(val networks: List<NetworkEntity>) : ScanPhase()
+    object Done : ScanPhase()
+}
 
 class HomeViewModel(
     private val eventManager: EventManager,
     private val powerEventDao: PowerEventDao,
     private val networkRepository: NetworkRepository,
-    private val settingsManager: SettingsManager,
-    private val wifiScanner: WifiScanner,
-    private val networkMatcher: NetworkMatcher = NetworkMatcher()
+    private val settingsManager: SettingsManager
 ) : ViewModel() {
 
-    // Central source of truth for power state
     val powerState: StateFlow<PowerState> = eventManager.currentState
 
     val isMonitoringEnabled: StateFlow<Boolean> = settingsManager.monitoringEnabledFlow
@@ -57,35 +75,36 @@ class HomeViewModel(
     private val _scanCountdown = MutableStateFlow(30)
     val scanCountdown = _scanCountdown.asStateFlow()
 
-    private val _isScanning = MutableStateFlow(false)
-    val isScanning = _isScanning.asStateFlow()
+    private val _scanPhase = MutableStateFlow<ScanPhase>(ScanPhase.Idle)
+    val scanPhase = _scanPhase.asStateFlow()
+
+    // Derived for backward compat
+    val isScanning: StateFlow<Boolean> = _scanPhase
+        .map { it !is ScanPhase.Idle && it !is ScanPhase.Done }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _activeOutageDurationMs = MutableStateFlow(0L)
     val activeOutageDurationMs = _activeOutageDurationMs.asStateFlow()
 
-    private val _lastDetectedBssids = MutableStateFlow<Set<String>>(emptySet())
-    private val _hasPerformedScan = MutableStateFlow(false)
-    
-    /**
-     * VERDICT LOGIC:
-     * Combines registered networks with the latest scan results to determine 
-     * the status of each individual router/checker.
-     */
+    val lastPowerOnTime: StateFlow<Long> = settingsManager.lastPowerOnTimeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
+    val firstRunTime: StateFlow<Long> = settingsManager.firstRunTimeFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
+
     val networkBreakdown: StateFlow<List<NetworkStatus>> = combine(
         registeredNetworks,
-        _lastDetectedBssids,
-        _hasPerformedScan,
-        powerState
-    ) { networks, detected, hasScanned, state ->
+        eventManager.detectedBssids,
+        eventManager.scanPerformed
+    ) { networks, detected, scanPerformed ->
         networks.map { network ->
-            val isActive = if (hasScanned) {
-                // Use normalized BSSID comparison for verdict
-                network.bssid.uppercase() in detected
-            } else {
-                // Before first scan, use global state as fallback
-                state == PowerState.POWER_ON
+            val bssidLower = network.bssid.lowercase()
+            val state = when {
+                detected.contains(bssidLower) -> NetworkScanState.ACTIVE
+                !scanPerformed -> NetworkScanState.NOT_SCANNED
+                else -> NetworkScanState.OFFLINE
             }
-            NetworkStatus(network.displayName, isActive)
+            NetworkStatus(network.displayName, state)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -105,28 +124,84 @@ class HomeViewModel(
         calculateStats(events)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PowerStats())
 
+    /** Recent power-ON sessions (gaps between outages) */
+    val recentOnSessions: StateFlow<List<OnSession>> = todayEvents.map { events ->
+        buildOnSessions(events)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     init {
-        // Monitoring loop: Runs the countdown and triggers the functional scan
+        // Ensure first-run time is persisted
+        viewModelScope.launch {
+            settingsManager.initFirstRunTime()
+            // Restore last power-on time from prefs into EventManager if not yet set
+            val saved = settingsManager.lastPowerOnTimeFlow.first()
+            if (saved > 0L && eventManager.confirmedOnSinceMs.value == 0L) {
+                // Reflect saved value (EventManager is in-memory; populate from prefs on boot)
+                // We expose it indirectly via the duration timer below
+            }
+        }
+
+        // Countdown + multi-phase scan animation loop
         viewModelScope.launch {
             while (true) {
                 if (_scanCountdown.value > 0) {
                     _scanCountdown.value -= 1
                     delay(1000)
                 } else {
-                    performFunctionalScan()
+                    // Play multi-phase animation
+                    val networks = registeredNetworks.value
+
+                    _scanPhase.value = ScanPhase.CheckingConnected
+                    delay(700)
+
+                    _scanPhase.value = ScanPhase.ScanningNearby
+                    delay(1200)
+
+                    _scanPhase.value = ScanPhase.MatchingBssids(networks)
+                    delay(1400)
+
+                    _scanPhase.value = ScanPhase.Done
+                    delay(400)
+
+                    _scanPhase.value = ScanPhase.Idle
                     _scanCountdown.value = 30
                 }
             }
         }
 
-        // Live timer for active outages
+        // Live duration timer
+        // Live duration timer
         viewModelScope.launch {
             while (true) {
                 val activeEvent = activeOutageEvent.value
                 val currentState = powerState.value
 
-                if (currentState == PowerState.POWER_OFF && activeEvent != null) {
-                    _activeOutageDurationMs.value = System.currentTimeMillis() - activeEvent.startTime
+                if (currentState == PowerState.POWER_OFF) {
+                    if (activeEvent != null) {
+                        _activeOutageDurationMs.value = System.currentTimeMillis() - activeEvent.startTime
+                    } else {
+                        // Fallback: if flow hasn't emitted yet but we are POWER_OFF, query DB directly
+                        val directActiveEvent = powerEventDao.getActiveOutageEvent()
+                        if (directActiveEvent != null) {
+                            _activeOutageDurationMs.value = System.currentTimeMillis() - directActiveEvent.startTime
+                        } else {
+                            _activeOutageDurationMs.value = 0L
+                        }
+                    }
+                } else if (currentState == PowerState.POWER_ON) {
+                    // Priority: use EventManager's in-memory confirmed timestamp,
+                    // then SettingsManager persisted value
+                    val confirmedOn = eventManager.confirmedOnSinceMs.value
+                    if (confirmedOn > 0L) {
+                        _activeOutageDurationMs.value = System.currentTimeMillis() - confirmedOn
+                    } else {
+                        val savedOn = lastPowerOnTime.value
+                        if (savedOn > 0L) {
+                            _activeOutageDurationMs.value = System.currentTimeMillis() - savedOn
+                        } else {
+                            _activeOutageDurationMs.value = 0L
+                        }
+                    }
                 } else {
                     _activeOutageDurationMs.value = 0L
                 }
@@ -135,51 +210,48 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Functional Scan Process:
-     * 1. Fetches Targeting Networks (what we are looking for).
-     * 2. Scans Environment (Wi-Fi scanning).
-     * 3. Compares Results (Matching logic).
-     * 4. Issues Verdict (Updates UI and Global State).
-     */
-    private suspend fun performFunctionalScan() {
-        _isScanning.value = true
-        try {
-            // 1. Get Targeting Networks from Repository
-            val targetingNetworks = networkRepository.getAllNetworks().first()
-            if (targetingNetworks.isEmpty()) {
-                eventManager.processNewState(PowerState.UNKNOWN)
-                return
+    private fun buildOnSessions(events: List<PowerEventEntity>): List<OnSession> {
+        if (events.isEmpty()) return emptyList()
+        val now = System.currentTimeMillis()
+        val todayStart = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        val startOfMonitoringToday = maxOf(todayStart, firstRunTime.value)
+
+        val completedOutages = events
+            .filter { it.endTime != null }
+            .sortedBy { it.startTime }
+
+        val sessions = mutableListOf<OnSession>()
+
+        // ON session before first outage
+        if (completedOutages.isNotEmpty()) {
+            val firstOutageStart = completedOutages.first().startTime
+            if (firstOutageStart > startOfMonitoringToday) {
+                sessions.add(OnSession(startOfMonitoringToday, firstOutageStart))
             }
-
-            // 2. Perform Environment Scan
-            // Wait for first emission from scanner with 15s timeout
-            val environmentNetworks = withTimeoutOrNull(15000) {
-                wifiScanner.scanNearbyNetworks().first()
-            } ?: emptyList()
-
-            // 3. Compare targeting vs environment
-            val matchResult = networkMatcher.match(environmentNetworks, targetingNetworks)
-            
-            // 4. Update individual verdicts (Normalized to Uppercase)
-            val detectedBssids = matchResult.detectedNetworks.map { it.bssid.uppercase() }.toSet()
-            _lastDetectedBssids.value = detectedBssids
-            _hasPerformedScan.value = true
-            
-            // 5. Update global state verdict
-            val newState = if (matchResult.detectionCount > 0) PowerState.POWER_ON else PowerState.POWER_OFF
-            
-            // Central engine handles persistence and confirmation (anti-flap)
-            eventManager.processNewState(
-                newState = newState,
-                activeCheckerCount = matchResult.detectionCount,
-                totalCheckerCount = matchResult.totalRegistered
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            _isScanning.value = false
         }
+
+        // ON sessions between consecutive outages
+        for (i in 0 until completedOutages.size - 1) {
+            val end = completedOutages[i].endTime!!
+            val nextStart = completedOutages[i + 1].startTime
+            if (nextStart > end) {
+                sessions.add(OnSession(end, nextStart))
+            }
+        }
+
+        // ON session after last completed outage (up to now, if power is currently ON)
+        if (completedOutages.isNotEmpty()) {
+            val lastEnd = completedOutages.last().endTime!!
+            if (powerState.value == PowerState.POWER_ON) {
+                sessions.add(OnSession(lastEnd, now))
+            }
+        }
+
+        return sessions.sortedByDescending { it.endMs }.take(5)
     }
 
     private fun calculateStats(events: List<PowerEventEntity>): PowerStats {
@@ -190,11 +262,12 @@ class HomeViewModel(
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
         val todayStart = calendar.timeInMillis
-        
-        val totalTimePassedToday = now - todayStart
+
+        val startOfMonitoringToday = maxOf(todayStart, firstRunTime.value)
+        val totalTimePassedToday = now - startOfMonitoringToday
         var totalOffTime = 0L
         var longestOutage = 0L
-        
+
         events.forEach { event ->
             val start = maxOf(event.startTime, todayStart)
             val end = minOf(event.endTime ?: now, now)
@@ -204,10 +277,10 @@ class HomeViewModel(
                 if (duration > longestOutage) longestOutage = duration
             }
         }
-        
+
         val totalOnTime = maxOf(0, totalTimePassedToday - totalOffTime)
         val availability = if (totalTimePassedToday > 0) (totalOnTime.toFloat() / totalTimePassedToday.toFloat()) * 100f else 100f
-        
+
         return PowerStats(
             availabilityPercentage = availability,
             totalOnTimeMs = totalOnTime,

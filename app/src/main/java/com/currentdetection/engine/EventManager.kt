@@ -1,23 +1,55 @@
 package com.currentdetection.engine
 
 import com.currentdetection.data.local.PowerEventDao
+import com.currentdetection.data.local.SettingsManager
 import com.currentdetection.data.local.entities.PowerEventEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class EventManager(
+class EventManager private constructor(
     private val powerEventDao: PowerEventDao,
+    private val settingsManager: SettingsManager? = null,
     private val powerOffConfirmationMs: Long = 30_000L,
     private val powerOnConfirmationMs: Long = 15_000L
 ) {
+    companion object {
+        @Volatile
+        private var INSTANCE: EventManager? = null
+
+        fun getInstance(powerEventDao: PowerEventDao, settingsManager: SettingsManager? = null): EventManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: EventManager(powerEventDao, settingsManager).also { INSTANCE = it }
+            }
+        }
+    }
+
     private val _currentState = MutableStateFlow(PowerState.UNKNOWN)
     val currentState: StateFlow<PowerState> = _currentState.asStateFlow()
+
+    private val _detectedBssids = MutableStateFlow<Set<String>>(emptySet())
+    val detectedBssids: StateFlow<Set<String>> = _detectedBssids.asStateFlow()
+
+    private val _scanPerformed = MutableStateFlow(false)
+    val scanPerformed: StateFlow<Boolean> = _scanPerformed.asStateFlow()
+
+    /** Timestamp when power was last confirmed ON. 0L = unknown. */
+    private val _confirmedOnSinceMs = MutableStateFlow(0L)
+    val confirmedOnSinceMs: StateFlow<Long> = _confirmedOnSinceMs.asStateFlow()
 
     private var pendingState: PowerState? = null
     private var pendingStateStartTime: Long = 0L
 
-    suspend fun processNewState(newState: PowerState, currentTimeMs: Long = System.currentTimeMillis(), activeCheckerCount: Int = 0, totalCheckerCount: Int = 0) {
+    suspend fun processNewState(
+        newState: PowerState, 
+        currentTimeMs: Long = System.currentTimeMillis(), 
+        activeCheckerCount: Int = 0, 
+        totalCheckerCount: Int = 0,
+        detectedBssids: Set<String> = emptySet(),
+        scanPerformed: Boolean = false
+    ) {
+        _detectedBssids.value = detectedBssids
+        _scanPerformed.value = scanPerformed
         val current = _currentState.value
 
         if (newState == current) {
@@ -96,6 +128,9 @@ class EventManager(
                 )
                 powerEventDao.updateEvent(updatedEvent)
             }
+            // Record when power was confirmed ON
+            _confirmedOnSinceMs.value = currentTimeMs
+            settingsManager?.setLastPowerOnTime(currentTimeMs)
         }
     }
 }

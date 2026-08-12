@@ -1,0 +1,4 @@
+com.currentdetection.test.app-androidTest-0 W:\Mobile Application\Current Detection\app\build\generated\res\resValues\androidTest\debug
+com.currentdetection.test.app-mergeDebugAndroidTestResources-1 W:\Mobile Application\Current Detection\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.currentdetection.test.app-mergeDebugAndroidTestResources-2 W:\Mobile Application\Current Detection\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.currentdetection.test.app-debugAndroidTest-3 W:\Mobile Application\Current Detection\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
