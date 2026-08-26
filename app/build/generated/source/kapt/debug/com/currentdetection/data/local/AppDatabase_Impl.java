@@ -33,13 +33,13 @@ public final class AppDatabase_Impl extends AppDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(2) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(3) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `networks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `displayName` TEXT NOT NULL, `ssid` TEXT NOT NULL, `bssid` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL)");
-        db.execSQL("CREATE TABLE IF NOT EXISTS `power_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startTime` INTEGER NOT NULL, `endTime` INTEGER, `duration` INTEGER, `detectedCheckerCount` INTEGER NOT NULL, `totalCheckerCount` INTEGER NOT NULL)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `power_events` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startTime` INTEGER NOT NULL, `endTime` INTEGER, `duration` INTEGER, `detectedCheckerCount` INTEGER NOT NULL, `totalCheckerCount` INTEGER NOT NULL, `isUnknownGap` INTEGER NOT NULL)");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cfc274f8ea491945c521a2e2fe9153ce')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '95ccae251c0eb30ae36ca88576e16697')");
       }
 
       @Override
@@ -105,13 +105,14 @@ public final class AppDatabase_Impl extends AppDatabase {
                   + " Expected:\n" + _infoNetworks + "\n"
                   + " Found:\n" + _existingNetworks);
         }
-        final HashMap<String, TableInfo.Column> _columnsPowerEvents = new HashMap<String, TableInfo.Column>(6);
+        final HashMap<String, TableInfo.Column> _columnsPowerEvents = new HashMap<String, TableInfo.Column>(7);
         _columnsPowerEvents.put("id", new TableInfo.Column("id", "INTEGER", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsPowerEvents.put("startTime", new TableInfo.Column("startTime", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsPowerEvents.put("endTime", new TableInfo.Column("endTime", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsPowerEvents.put("duration", new TableInfo.Column("duration", "INTEGER", false, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsPowerEvents.put("detectedCheckerCount", new TableInfo.Column("detectedCheckerCount", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsPowerEvents.put("totalCheckerCount", new TableInfo.Column("totalCheckerCount", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsPowerEvents.put("isUnknownGap", new TableInfo.Column("isUnknownGap", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysPowerEvents = new HashSet<TableInfo.ForeignKey>(0);
         final HashSet<TableInfo.Index> _indicesPowerEvents = new HashSet<TableInfo.Index>(0);
         final TableInfo _infoPowerEvents = new TableInfo("power_events", _columnsPowerEvents, _foreignKeysPowerEvents, _indicesPowerEvents);
@@ -123,7 +124,7 @@ public final class AppDatabase_Impl extends AppDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "cfc274f8ea491945c521a2e2fe9153ce", "1dc9cf04fca104d71b29e08c4ba1d33d");
+    }, "95ccae251c0eb30ae36ca88576e16697", "5ddd0bd05cdee3c9de430a98b9cefdef");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;

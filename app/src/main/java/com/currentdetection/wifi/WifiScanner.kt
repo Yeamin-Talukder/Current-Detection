@@ -26,6 +26,7 @@ class WifiScannerImpl(private val context: Context) : WifiScanner {
 
     private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
 
+    @Suppress("DEPRECATION")
     @SuppressLint("MissingPermission")
     override fun scanNearbyNetworks(): Flow<List<ScanResultItem>> = callbackFlow {
         val receiver = object : BroadcastReceiver() {
@@ -57,6 +58,7 @@ class WifiScannerImpl(private val context: Context) : WifiScanner {
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun getScanResults(): List<ScanResultItem> {
         return try {
             wifiManager.scanResults.mapNotNull {
@@ -70,6 +72,7 @@ class WifiScannerImpl(private val context: Context) : WifiScanner {
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun getConnectedBssid(): String? {
         return try {
             val info = wifiManager.connectionInfo

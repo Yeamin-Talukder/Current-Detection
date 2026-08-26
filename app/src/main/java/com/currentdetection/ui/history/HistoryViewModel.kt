@@ -19,7 +19,9 @@ data class DailyReport(
     val dateMs: Long,               // midnight of that day
     val completedOutages: List<PowerEventEntity>, // outages with endTime
     val activeOutage: PowerEventEntity?,          // ongoing outage (null if none)
-    val totalOutageMs: Long,        // includes partial active outage up to now
+    val totalOutageMs: Long,        // actual off time
+    val totalAwayMs: Long,          // away time
+    val monitoringStartMs: Long,    // when monitoring started on this day
     val monitoredMs: Long,          // actual monitored time (excludes pre-install unknown)
     val totalOnTimeMs: Long,
     val availabilityPct: Float,
@@ -86,17 +88,22 @@ class HistoryViewModel(
                 events.firstOrNull { it.endTime == null }
             } else null
 
-            // Sum outage time within this day window
+            // Sum outage time and away time within this day window
             var totalOutageMs = 0L
+            var totalAwayMs = 0L
             (completedOutages + listOfNotNull(activeOutage)).forEach { event ->
                 val eStart = maxOf(event.startTime, monitoringStart)
                 val eEnd = minOf(event.endTime ?: dayNow, dayNow)
-                if (eEnd > eStart) totalOutageMs += eEnd - eStart
+                if (eEnd > eStart) {
+                    if (event.isUnknownGap) totalAwayMs += eEnd - eStart
+                    else totalOutageMs += eEnd - eStart
+                }
             }
 
-            val totalOnTimeMs = maxOf(0L, monitoredMs - totalOutageMs)
-            val availabilityPct = if (monitoredMs > 0L)
-                (totalOnTimeMs.toFloat() / monitoredMs.toFloat() * 100f).coerceIn(0f, 100f)
+            val validMonitoredMs = maxOf(0L, monitoredMs - totalAwayMs)
+            val totalOnTimeMs = maxOf(0L, validMonitoredMs - totalOutageMs)
+            val availabilityPct = if (validMonitoredMs > 0L)
+                (totalOnTimeMs.toFloat() / validMonitoredMs.toFloat() * 100f).coerceIn(0f, 100f)
             else 0f
 
             val dateLabel = when (dayStart) {
@@ -111,6 +118,8 @@ class HistoryViewModel(
                 completedOutages = completedOutages,
                 activeOutage = activeOutage,
                 totalOutageMs = totalOutageMs,
+                totalAwayMs = totalAwayMs,
+                monitoringStartMs = monitoringStart,
                 monitoredMs = monitoredMs,
                 totalOnTimeMs = totalOnTimeMs,
                 availabilityPct = availabilityPct,

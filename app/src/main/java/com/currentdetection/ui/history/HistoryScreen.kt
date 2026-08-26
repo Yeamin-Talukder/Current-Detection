@@ -203,6 +203,45 @@ fun HistoryDayCard(report: DailyReport, tick: Long) {
     var expanded by remember { mutableStateOf(report.isToday) }
     val hasActiveOutage = report.activeOutage != null
     val allOutages = report.completedOutages + listOfNotNull(report.activeOutage)
+    val timelineItems = remember(report) {
+        val now = System.currentTimeMillis()
+        val dayEnd = report.dateMs + 86_400_000L
+        val dayNow = minOf(dayEnd, now)
+        val list = mutableListOf<HistoryTimelineItem>()
+
+        val monitoringStart = report.monitoringStartMs
+        val sortedOutages = allOutages.sortedBy { it.startTime }
+
+        sortedOutages.forEach { 
+            if (it.isUnknownGap) list.add(HistoryTimelineItem.Away(it))
+            else list.add(HistoryTimelineItem.Outage(it))
+        }
+
+        if (sortedOutages.isEmpty()) {
+            if (monitoringStart < dayNow) {
+                list.add(HistoryTimelineItem.PowerOn(monitoringStart, dayNow))
+            }
+        } else {
+            val firstStart = sortedOutages.first().startTime
+            if (firstStart > monitoringStart) {
+                list.add(HistoryTimelineItem.PowerOn(monitoringStart, firstStart))
+            }
+
+            for (i in 0 until sortedOutages.size - 1) {
+                val end = sortedOutages[i].endTime ?: dayNow
+                val nextStart = sortedOutages[i + 1].startTime
+                if (nextStart > end) {
+                    list.add(HistoryTimelineItem.PowerOn(end, nextStart))
+                }
+            }
+
+            val lastOutage = sortedOutages.last()
+            if (lastOutage.endTime != null && lastOutage.endTime!! < dayNow) {
+                list.add(HistoryTimelineItem.PowerOn(lastOutage.endTime!!, dayNow))
+            }
+        }
+        list.sortedByDescending { it.sortTime }
+    }
 
     Card(
         modifier = Modifier
@@ -299,12 +338,16 @@ fun HistoryDayCard(report: DailyReport, tick: Long) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MiniStatChip("ON", formatDuration(report.totalOnTimeMs), PowerOn, Modifier.weight(1f))
                 MiniStatChip("OFF", formatDuration(report.totalOutageMs), PowerOff, Modifier.weight(1f))
-                MiniStatChip("MONITORED", formatDuration(report.monitoredMs), MutedText, Modifier.weight(1f))
+                if (report.totalAwayMs > 0) {
+                    MiniStatChip("AWAY", formatDuration(report.totalAwayMs), Color(0xFF546E7A), Modifier.weight(1f))
+                } else {
+                    MiniStatChip("MONITORED", formatDuration(report.monitoredMs), MutedText, Modifier.weight(1f))
+                }
             }
 
             // ── Expandable outage list ─────────────────────────
             AnimatedVisibility(
-                visible = expanded && allOutages.isNotEmpty(),
+                visible = expanded && timelineItems.isNotEmpty(),
                 enter = fadeIn(tween(250)) + expandVertically(tween(300, easing = FastOutSlowInEasing)),
                 exit = fadeOut(tween(200)) + shrinkVertically(tween(250))
             ) {
@@ -312,17 +355,21 @@ fun HistoryDayCard(report: DailyReport, tick: Long) {
                     Spacer(modifier = Modifier.height(14.dp))
                     HorizontalDivider(color = CardBorderColor.copy(alpha = 0.2f))
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("OUTAGE LOG", style = MaterialTheme.typography.labelSmall, color = MutedText, letterSpacing = 2.sp)
+                    Text("ACTIVITY LOG", style = MaterialTheme.typography.labelSmall, color = MutedText, letterSpacing = 2.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    allOutages.forEach { event ->
-                        OutageRow(event, tick)
+                    timelineItems.forEach { item ->
+                        when (item) {
+                            is HistoryTimelineItem.Away -> AwayRow(item.event, tick)
+                            is HistoryTimelineItem.Outage -> OutageRow(item.event, tick)
+                            is HistoryTimelineItem.PowerOn -> HistorySessionItem(item.startMs, item.endMs)
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                     }
                 }
             }
 
             // Expand indicator
-            if (allOutages.isNotEmpty()) {
+            if (timelineItems.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     Icon(
@@ -378,15 +425,15 @@ fun DayPowerBar(report: DailyReport, tick: Long) {
             cornerRadius = CornerRadius(9.dp.toPx())
         )
 
-        // Red outage blocks
         allOutages.forEach { event ->
             val eStart = maxOf(event.startTime, dayStart).toFloat()
             val eEnd = minOf(event.endTime ?: dayNow, dayNow).toFloat()
             if (eEnd > eStart) {
                 val x0 = ((eStart - dayStart) / dayRange) * size.width
                 val x1 = ((eEnd - dayStart) / dayRange) * size.width
+                val blockColor = if (event.isUnknownGap) Color(0xFF546E7A) else PowerOff
                 drawRoundRect(
-                    color = PowerOff,
+                    color = blockColor,
                     topLeft = Offset(x0, 0f),
                     size = Size(max(6f, x1 - x0), size.height),
                     cornerRadius = CornerRadius(4.dp.toPx())
@@ -418,7 +465,7 @@ fun DayPowerBar(report: DailyReport, tick: Long) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         LegendDot(PowerOn, "Power ON")
         LegendDot(PowerOff, "Power OFF")
-        if (report.isFirstDay) LegendDot(Color(0xFF546E7A), "Unknown")
+        LegendDot(Color(0xFF546E7A), "Away / Unmonitored")
         if (report.isToday) LegendDot(Color(0xFF263238), "Future")
     }
 }
@@ -507,6 +554,74 @@ fun OutageRow(event: PowerEventEntity, tick: Long) {
         }
         Text(dur, color = PowerOff, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
     }
+}
+
+@Composable
+fun AwayRow(event: PowerEventEntity, tick: Long) {
+    val timeFmt = SimpleDateFormat("hh:mm a", Locale.getDefault())
+    val start = timeFmt.format(Date(event.startTime))
+    val isOngoing = event.endTime == null
+    val end = if (isOngoing) "Still Away" else timeFmt.format(Date(event.endTime!!))
+    val durationMs = if (isOngoing) System.currentTimeMillis() - event.startTime else event.duration ?: 0L
+    val dur = formatDuration(durationMs)
+    val awayColor = Color(0xFF546E7A)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(awayColor.copy(alpha = 0.1f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Outlined.Home, contentDescription = null, tint = awayColor, modifier = Modifier.size(14.dp))
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "$start → $end",
+                color = Color.White,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Text(dur, color = awayColor, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun HistorySessionItem(startMs: Long, endMs: Long) {
+    val timeFmt = SimpleDateFormat("hh:mm a", Locale.getDefault())
+    val start = timeFmt.format(Date(startMs))
+    val end = timeFmt.format(Date(endMs))
+    val dur = formatDuration(endMs - startMs)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(PowerOn.copy(alpha = 0.05f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Outlined.ElectricBolt, contentDescription = null, tint = PowerOn, modifier = Modifier.size(14.dp))
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "$start → $end",
+                color = Color.White,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Text(dur, color = PowerOn, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+    }
+}
+
+sealed class HistoryTimelineItem {
+    abstract val sortTime: Long
+    data class Outage(val event: PowerEventEntity) : HistoryTimelineItem() { override val sortTime = event.startTime }
+    data class Away(val event: PowerEventEntity) : HistoryTimelineItem() { override val sortTime = event.startTime }
+    data class PowerOn(val startMs: Long, val endMs: Long) : HistoryTimelineItem() { override val sortTime = startMs }
 }
 
 // ─── EMPTY STATE ────────────────────────────────────────────────

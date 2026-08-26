@@ -37,6 +37,8 @@ public final class PowerEventDao_Impl implements PowerEventDao {
 
   private final EntityInsertionAdapter<PowerEventEntity> __insertionAdapterOfPowerEventEntity;
 
+  private final EntityDeletionOrUpdateAdapter<PowerEventEntity> __deletionAdapterOfPowerEventEntity;
+
   private final EntityDeletionOrUpdateAdapter<PowerEventEntity> __updateAdapterOfPowerEventEntity;
 
   private final SharedSQLiteStatement __preparedStmtOfClearAllEvents;
@@ -47,7 +49,7 @@ public final class PowerEventDao_Impl implements PowerEventDao {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `power_events` (`id`,`startTime`,`endTime`,`duration`,`detectedCheckerCount`,`totalCheckerCount`) VALUES (nullif(?, 0),?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `power_events` (`id`,`startTime`,`endTime`,`duration`,`detectedCheckerCount`,`totalCheckerCount`,`isUnknownGap`) VALUES (nullif(?, 0),?,?,?,?,?,?)";
       }
 
       @Override
@@ -67,13 +69,28 @@ public final class PowerEventDao_Impl implements PowerEventDao {
         }
         statement.bindLong(5, entity.getDetectedCheckerCount());
         statement.bindLong(6, entity.getTotalCheckerCount());
+        final int _tmp = entity.isUnknownGap() ? 1 : 0;
+        statement.bindLong(7, _tmp);
+      }
+    };
+    this.__deletionAdapterOfPowerEventEntity = new EntityDeletionOrUpdateAdapter<PowerEventEntity>(__db) {
+      @Override
+      @NonNull
+      protected String createQuery() {
+        return "DELETE FROM `power_events` WHERE `id` = ?";
+      }
+
+      @Override
+      protected void bind(@NonNull final SupportSQLiteStatement statement,
+          @NonNull final PowerEventEntity entity) {
+        statement.bindLong(1, entity.getId());
       }
     };
     this.__updateAdapterOfPowerEventEntity = new EntityDeletionOrUpdateAdapter<PowerEventEntity>(__db) {
       @Override
       @NonNull
       protected String createQuery() {
-        return "UPDATE OR ABORT `power_events` SET `id` = ?,`startTime` = ?,`endTime` = ?,`duration` = ?,`detectedCheckerCount` = ?,`totalCheckerCount` = ? WHERE `id` = ?";
+        return "UPDATE OR ABORT `power_events` SET `id` = ?,`startTime` = ?,`endTime` = ?,`duration` = ?,`detectedCheckerCount` = ?,`totalCheckerCount` = ?,`isUnknownGap` = ? WHERE `id` = ?";
       }
 
       @Override
@@ -93,7 +110,9 @@ public final class PowerEventDao_Impl implements PowerEventDao {
         }
         statement.bindLong(5, entity.getDetectedCheckerCount());
         statement.bindLong(6, entity.getTotalCheckerCount());
-        statement.bindLong(7, entity.getId());
+        final int _tmp = entity.isUnknownGap() ? 1 : 0;
+        statement.bindLong(7, _tmp);
+        statement.bindLong(8, entity.getId());
       }
     };
     this.__preparedStmtOfClearAllEvents = new SharedSQLiteStatement(__db) {
@@ -118,6 +137,25 @@ public final class PowerEventDao_Impl implements PowerEventDao {
           final Long _result = __insertionAdapterOfPowerEventEntity.insertAndReturnId(event);
           __db.setTransactionSuccessful();
           return _result;
+        } finally {
+          __db.endTransaction();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object deleteEvent(final PowerEventEntity event,
+      final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        __db.beginTransaction();
+        try {
+          __deletionAdapterOfPowerEventEntity.handle(event);
+          __db.setTransactionSuccessful();
+          return Unit.INSTANCE;
         } finally {
           __db.endTransaction();
         }
@@ -183,6 +221,7 @@ public final class PowerEventDao_Impl implements PowerEventDao {
           final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
           final int _cursorIndexOfDetectedCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "detectedCheckerCount");
           final int _cursorIndexOfTotalCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCheckerCount");
+          final int _cursorIndexOfIsUnknownGap = CursorUtil.getColumnIndexOrThrow(_cursor, "isUnknownGap");
           final List<PowerEventEntity> _result = new ArrayList<PowerEventEntity>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final PowerEventEntity _item;
@@ -206,7 +245,11 @@ public final class PowerEventDao_Impl implements PowerEventDao {
             _tmpDetectedCheckerCount = _cursor.getInt(_cursorIndexOfDetectedCheckerCount);
             final int _tmpTotalCheckerCount;
             _tmpTotalCheckerCount = _cursor.getInt(_cursorIndexOfTotalCheckerCount);
-            _item = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount);
+            final boolean _tmpIsUnknownGap;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsUnknownGap);
+            _tmpIsUnknownGap = _tmp != 0;
+            _item = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount,_tmpIsUnknownGap);
             _result.add(_item);
           }
           return _result;
@@ -224,7 +267,7 @@ public final class PowerEventDao_Impl implements PowerEventDao {
 
   @Override
   public Object getActiveOutageEvent(final Continuation<? super PowerEventEntity> $completion) {
-    final String _sql = "SELECT * FROM power_events WHERE endTime IS NULL ORDER BY startTime DESC LIMIT 1";
+    final String _sql = "SELECT * FROM power_events WHERE endTime IS NULL AND isUnknownGap = 0 ORDER BY startTime DESC LIMIT 1";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
     final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
     return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<PowerEventEntity>() {
@@ -239,6 +282,7 @@ public final class PowerEventDao_Impl implements PowerEventDao {
           final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
           final int _cursorIndexOfDetectedCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "detectedCheckerCount");
           final int _cursorIndexOfTotalCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCheckerCount");
+          final int _cursorIndexOfIsUnknownGap = CursorUtil.getColumnIndexOrThrow(_cursor, "isUnknownGap");
           final PowerEventEntity _result;
           if (_cursor.moveToFirst()) {
             final long _tmpId;
@@ -261,7 +305,11 @@ public final class PowerEventDao_Impl implements PowerEventDao {
             _tmpDetectedCheckerCount = _cursor.getInt(_cursorIndexOfDetectedCheckerCount);
             final int _tmpTotalCheckerCount;
             _tmpTotalCheckerCount = _cursor.getInt(_cursorIndexOfTotalCheckerCount);
-            _result = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount);
+            final boolean _tmpIsUnknownGap;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsUnknownGap);
+            _tmpIsUnknownGap = _tmp != 0;
+            _result = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount,_tmpIsUnknownGap);
           } else {
             _result = null;
           }
@@ -276,7 +324,7 @@ public final class PowerEventDao_Impl implements PowerEventDao {
 
   @Override
   public Flow<PowerEventEntity> getActiveOutageEventFlow() {
-    final String _sql = "SELECT * FROM power_events WHERE endTime IS NULL ORDER BY startTime DESC LIMIT 1";
+    final String _sql = "SELECT * FROM power_events WHERE endTime IS NULL AND isUnknownGap = 0 ORDER BY startTime DESC LIMIT 1";
     final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
     return CoroutinesRoom.createFlow(__db, false, new String[] {"power_events"}, new Callable<PowerEventEntity>() {
       @Override
@@ -290,6 +338,7 @@ public final class PowerEventDao_Impl implements PowerEventDao {
           final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
           final int _cursorIndexOfDetectedCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "detectedCheckerCount");
           final int _cursorIndexOfTotalCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCheckerCount");
+          final int _cursorIndexOfIsUnknownGap = CursorUtil.getColumnIndexOrThrow(_cursor, "isUnknownGap");
           final PowerEventEntity _result;
           if (_cursor.moveToFirst()) {
             final long _tmpId;
@@ -312,7 +361,128 @@ public final class PowerEventDao_Impl implements PowerEventDao {
             _tmpDetectedCheckerCount = _cursor.getInt(_cursorIndexOfDetectedCheckerCount);
             final int _tmpTotalCheckerCount;
             _tmpTotalCheckerCount = _cursor.getInt(_cursorIndexOfTotalCheckerCount);
-            _result = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount);
+            final boolean _tmpIsUnknownGap;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsUnknownGap);
+            _tmpIsUnknownGap = _tmp != 0;
+            _result = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount,_tmpIsUnknownGap);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+        }
+      }
+
+      @Override
+      protected void finalize() {
+        _statement.release();
+      }
+    });
+  }
+
+  @Override
+  public Object getActiveGapEvent(final Continuation<? super PowerEventEntity> $completion) {
+    final String _sql = "SELECT * FROM power_events WHERE endTime IS NULL AND isUnknownGap = 1 ORDER BY startTime DESC LIMIT 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    final CancellationSignal _cancellationSignal = DBUtil.createCancellationSignal();
+    return CoroutinesRoom.execute(__db, false, _cancellationSignal, new Callable<PowerEventEntity>() {
+      @Override
+      @Nullable
+      public PowerEventEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfStartTime = CursorUtil.getColumnIndexOrThrow(_cursor, "startTime");
+          final int _cursorIndexOfEndTime = CursorUtil.getColumnIndexOrThrow(_cursor, "endTime");
+          final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
+          final int _cursorIndexOfDetectedCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "detectedCheckerCount");
+          final int _cursorIndexOfTotalCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCheckerCount");
+          final int _cursorIndexOfIsUnknownGap = CursorUtil.getColumnIndexOrThrow(_cursor, "isUnknownGap");
+          final PowerEventEntity _result;
+          if (_cursor.moveToFirst()) {
+            final long _tmpId;
+            _tmpId = _cursor.getLong(_cursorIndexOfId);
+            final long _tmpStartTime;
+            _tmpStartTime = _cursor.getLong(_cursorIndexOfStartTime);
+            final Long _tmpEndTime;
+            if (_cursor.isNull(_cursorIndexOfEndTime)) {
+              _tmpEndTime = null;
+            } else {
+              _tmpEndTime = _cursor.getLong(_cursorIndexOfEndTime);
+            }
+            final Long _tmpDuration;
+            if (_cursor.isNull(_cursorIndexOfDuration)) {
+              _tmpDuration = null;
+            } else {
+              _tmpDuration = _cursor.getLong(_cursorIndexOfDuration);
+            }
+            final int _tmpDetectedCheckerCount;
+            _tmpDetectedCheckerCount = _cursor.getInt(_cursorIndexOfDetectedCheckerCount);
+            final int _tmpTotalCheckerCount;
+            _tmpTotalCheckerCount = _cursor.getInt(_cursorIndexOfTotalCheckerCount);
+            final boolean _tmpIsUnknownGap;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsUnknownGap);
+            _tmpIsUnknownGap = _tmp != 0;
+            _result = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount,_tmpIsUnknownGap);
+          } else {
+            _result = null;
+          }
+          return _result;
+        } finally {
+          _cursor.close();
+          _statement.release();
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Flow<PowerEventEntity> getActiveGapEventFlow() {
+    final String _sql = "SELECT * FROM power_events WHERE endTime IS NULL AND isUnknownGap = 1 ORDER BY startTime DESC LIMIT 1";
+    final RoomSQLiteQuery _statement = RoomSQLiteQuery.acquire(_sql, 0);
+    return CoroutinesRoom.createFlow(__db, false, new String[] {"power_events"}, new Callable<PowerEventEntity>() {
+      @Override
+      @Nullable
+      public PowerEventEntity call() throws Exception {
+        final Cursor _cursor = DBUtil.query(__db, _statement, false, null);
+        try {
+          final int _cursorIndexOfId = CursorUtil.getColumnIndexOrThrow(_cursor, "id");
+          final int _cursorIndexOfStartTime = CursorUtil.getColumnIndexOrThrow(_cursor, "startTime");
+          final int _cursorIndexOfEndTime = CursorUtil.getColumnIndexOrThrow(_cursor, "endTime");
+          final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
+          final int _cursorIndexOfDetectedCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "detectedCheckerCount");
+          final int _cursorIndexOfTotalCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCheckerCount");
+          final int _cursorIndexOfIsUnknownGap = CursorUtil.getColumnIndexOrThrow(_cursor, "isUnknownGap");
+          final PowerEventEntity _result;
+          if (_cursor.moveToFirst()) {
+            final long _tmpId;
+            _tmpId = _cursor.getLong(_cursorIndexOfId);
+            final long _tmpStartTime;
+            _tmpStartTime = _cursor.getLong(_cursorIndexOfStartTime);
+            final Long _tmpEndTime;
+            if (_cursor.isNull(_cursorIndexOfEndTime)) {
+              _tmpEndTime = null;
+            } else {
+              _tmpEndTime = _cursor.getLong(_cursorIndexOfEndTime);
+            }
+            final Long _tmpDuration;
+            if (_cursor.isNull(_cursorIndexOfDuration)) {
+              _tmpDuration = null;
+            } else {
+              _tmpDuration = _cursor.getLong(_cursorIndexOfDuration);
+            }
+            final int _tmpDetectedCheckerCount;
+            _tmpDetectedCheckerCount = _cursor.getInt(_cursorIndexOfDetectedCheckerCount);
+            final int _tmpTotalCheckerCount;
+            _tmpTotalCheckerCount = _cursor.getInt(_cursorIndexOfTotalCheckerCount);
+            final boolean _tmpIsUnknownGap;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsUnknownGap);
+            _tmpIsUnknownGap = _tmp != 0;
+            _result = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount,_tmpIsUnknownGap);
           } else {
             _result = null;
           }
@@ -349,6 +519,7 @@ public final class PowerEventDao_Impl implements PowerEventDao {
           final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
           final int _cursorIndexOfDetectedCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "detectedCheckerCount");
           final int _cursorIndexOfTotalCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCheckerCount");
+          final int _cursorIndexOfIsUnknownGap = CursorUtil.getColumnIndexOrThrow(_cursor, "isUnknownGap");
           final List<PowerEventEntity> _result = new ArrayList<PowerEventEntity>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final PowerEventEntity _item;
@@ -372,7 +543,11 @@ public final class PowerEventDao_Impl implements PowerEventDao {
             _tmpDetectedCheckerCount = _cursor.getInt(_cursorIndexOfDetectedCheckerCount);
             final int _tmpTotalCheckerCount;
             _tmpTotalCheckerCount = _cursor.getInt(_cursorIndexOfTotalCheckerCount);
-            _item = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount);
+            final boolean _tmpIsUnknownGap;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsUnknownGap);
+            _tmpIsUnknownGap = _tmp != 0;
+            _item = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount,_tmpIsUnknownGap);
             _result.add(_item);
           }
           return _result;
@@ -405,6 +580,7 @@ public final class PowerEventDao_Impl implements PowerEventDao {
           final int _cursorIndexOfDuration = CursorUtil.getColumnIndexOrThrow(_cursor, "duration");
           final int _cursorIndexOfDetectedCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "detectedCheckerCount");
           final int _cursorIndexOfTotalCheckerCount = CursorUtil.getColumnIndexOrThrow(_cursor, "totalCheckerCount");
+          final int _cursorIndexOfIsUnknownGap = CursorUtil.getColumnIndexOrThrow(_cursor, "isUnknownGap");
           final List<PowerEventEntity> _result = new ArrayList<PowerEventEntity>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final PowerEventEntity _item;
@@ -428,7 +604,11 @@ public final class PowerEventDao_Impl implements PowerEventDao {
             _tmpDetectedCheckerCount = _cursor.getInt(_cursorIndexOfDetectedCheckerCount);
             final int _tmpTotalCheckerCount;
             _tmpTotalCheckerCount = _cursor.getInt(_cursorIndexOfTotalCheckerCount);
-            _item = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount);
+            final boolean _tmpIsUnknownGap;
+            final int _tmp;
+            _tmp = _cursor.getInt(_cursorIndexOfIsUnknownGap);
+            _tmpIsUnknownGap = _tmp != 0;
+            _item = new PowerEventEntity(_tmpId,_tmpStartTime,_tmpEndTime,_tmpDuration,_tmpDetectedCheckerCount,_tmpTotalCheckerCount,_tmpIsUnknownGap);
             _result.add(_item);
           }
           return _result;

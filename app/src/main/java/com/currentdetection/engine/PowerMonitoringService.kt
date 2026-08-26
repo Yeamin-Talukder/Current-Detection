@@ -4,6 +4,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import com.currentdetection.data.local.AppDatabase
+import com.currentdetection.data.local.SettingsManager
 import com.currentdetection.data.repository.NetworkRepositoryImpl
 import com.currentdetection.wifi.WifiScannerImpl
 
@@ -14,20 +15,23 @@ class PowerMonitoringService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        
+
         notificationManager = AppNotificationManager(this)
-        
+
         val database = AppDatabase.getDatabase(this)
+        val settingsManager = SettingsManager(this)
         val networkRepository = NetworkRepositoryImpl(database.networkDao())
-        val eventManager = EventManager.getInstance(database.powerEventDao())
+        // EventManager now requires SettingsManager (non-optional) for state persistence
+        val eventManager = EventManager.getInstance(database.powerEventDao(), settingsManager)
         val wifiScanner = WifiScannerImpl(this)
-        
+
         monitoringManager = PowerMonitoringManager(
             context = this,
             wifiScanner = wifiScanner,
             networkRepository = networkRepository,
             eventManager = eventManager,
-            notificationManager = notificationManager
+            notificationManager = notificationManager,
+            settingsManager = settingsManager
         )
     }
 
@@ -38,9 +42,9 @@ class PowerMonitoringService : Service() {
         } else {
             startForeground(2001, notification)
         }
-        
+
         monitoringManager.startMonitoring()
-        
+
         return START_STICKY
     }
 

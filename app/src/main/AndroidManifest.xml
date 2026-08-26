@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Required for the BootReceiver to restart monitoring after reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -20,11 +22,29 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CurrentDetection"
         tools:targetApi="31">
-        
+
         <service
             android:name=".engine.PowerMonitoringService"
             android:foregroundServiceType="location"
             android:exported="false" />
+
+        <receiver android:name=".engine.NotificationActionReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.currentdetection.action.MARK_UNKNOWN" />
+                <action android:name="com.currentdetection.action.I_AM_BACK" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Restarts monitoring after device reboot or app update -->
+        <receiver
+            android:name=".engine.BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".MainActivity"

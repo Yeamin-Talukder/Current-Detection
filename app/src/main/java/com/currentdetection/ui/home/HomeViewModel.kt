@@ -18,6 +18,7 @@ data class PowerStats(
     val availabilityPercentage: Float = 0f,
     val totalOnTimeMs: Long = 0L,
     val totalOffTimeMs: Long = 0L,
+    val totalAwayTimeMs: Long = 0L,
     val outageCount: Int = 0,
     val longestOutageMs: Long = 0L,
     val averageOutageMs: Long = 0L,
@@ -65,7 +66,24 @@ class HomeViewModel(
     val isMonitoringEnabled: StateFlow<Boolean> = settingsManager.monitoringEnabledFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
 
+    // ─── Away Mode ────────────────────────────────────────────────────────────
+
+    /** True while the user is explicitly away from home. */
+    val isAwayMode: StateFlow<Boolean> = eventManager.isAwayMode
+
+    /** Timestamp when Away Mode was activated. 0L if not away. */
+    val awayStartTime: StateFlow<Long> = eventManager.awayStartTimeMs
+
+    /** Live counter — how many milliseconds the user has been away. */
+    private val _awayDurationMs = MutableStateFlow(0L)
+    val awayDurationMs: StateFlow<Long> = _awayDurationMs.asStateFlow()
+
+    // ─── Events & State ───────────────────────────────────────────────────────
+
     val activeOutageEvent: StateFlow<PowerEventEntity?> = powerEventDao.getActiveOutageEventFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val activeGapEvent: StateFlow<PowerEventEntity?> = powerEventDao.getActiveGapEventFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val registeredNetworks: StateFlow<List<NetworkEntity>> = networkRepository.getAllNetworks()
@@ -108,6 +126,7 @@ class HomeViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** All events today (outages + away gaps combined for timeline rendering). */
     val todayEvents: StateFlow<List<PowerEventEntity>> = powerEventDao.getAllEvents()
         .map { events ->
             val todayStart = Calendar.getInstance().apply {
@@ -120,11 +139,16 @@ class HomeViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Only confirmed outage events (no away gaps) — used for stats and outage list. */
+    val todayOutages: StateFlow<List<PowerEventEntity>> = todayEvents
+        .map { events -> events.filter { !it.isUnknownGap } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val powerStats: StateFlow<PowerStats> = todayEvents.map { events ->
         calculateStats(events)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PowerStats())
 
-    /** Recent power-ON sessions (gaps between outages) */
+    /** Recent power-ON sessions (gaps between outages and away periods) */
     val recentOnSessions: StateFlow<List<OnSession>> = todayEvents.map { events ->
         buildOnSessions(events)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -133,17 +157,22 @@ class HomeViewModel(
         // Ensure first-run time is persisted
         viewModelScope.launch {
             settingsManager.initFirstRunTime()
-            // Restore last power-on time from prefs into EventManager if not yet set
             val saved = settingsManager.lastPowerOnTimeFlow.first()
             if (saved > 0L && eventManager.confirmedOnSinceMs.value == 0L) {
                 // Reflect saved value (EventManager is in-memory; populate from prefs on boot)
-                // We expose it indirectly via the duration timer below
             }
         }
 
         // Countdown + multi-phase scan animation loop
         viewModelScope.launch {
             while (true) {
+                val isAway = isAwayMode.value
+                if (!isMonitoringEnabled.value || isAway) {
+                    _scanPhase.value = ScanPhase.Idle
+                    delay(1000)
+                    continue
+                }
+
                 if (_scanCountdown.value > 0) {
                     _scanCountdown.value -= 1
                     delay(1000)
@@ -169,8 +198,7 @@ class HomeViewModel(
             }
         }
 
-        // Live duration timer
-        // Live duration timer
+        // Live outage duration timer
         viewModelScope.launch {
             while (true) {
                 val activeEvent = activeOutageEvent.value
@@ -180,7 +208,6 @@ class HomeViewModel(
                     if (activeEvent != null) {
                         _activeOutageDurationMs.value = System.currentTimeMillis() - activeEvent.startTime
                     } else {
-                        // Fallback: if flow hasn't emitted yet but we are POWER_OFF, query DB directly
                         val directActiveEvent = powerEventDao.getActiveOutageEvent()
                         if (directActiveEvent != null) {
                             _activeOutageDurationMs.value = System.currentTimeMillis() - directActiveEvent.startTime
@@ -189,8 +216,6 @@ class HomeViewModel(
                         }
                     }
                 } else if (currentState == PowerState.POWER_ON) {
-                    // Priority: use EventManager's in-memory confirmed timestamp,
-                    // then SettingsManager persisted value
                     val confirmedOn = eventManager.confirmedOnSinceMs.value
                     if (confirmedOn > 0L) {
                         _activeOutageDurationMs.value = System.currentTimeMillis() - confirmedOn
@@ -208,10 +233,55 @@ class HomeViewModel(
                 delay(1000)
             }
         }
+
+        // Live away duration timer
+        viewModelScope.launch {
+            while (true) {
+                val awayStart = awayStartTime.value
+                if (isAwayMode.value && awayStart > 0L) {
+                    _awayDurationMs.value = System.currentTimeMillis() - awayStart
+                } else {
+                    _awayDurationMs.value = 0L
+                }
+                delay(1000)
+            }
+        }
     }
 
+    // ─── Away Mode Actions ────────────────────────────────────────────────────
+
+    fun enterAwayMode() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            eventManager.enterAwayMode()
+        }
+    }
+
+    fun returnHome() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            eventManager.exitAwayMode()
+            // Reset countdown so the next scan happens right after the animation
+            _scanCountdown.value = 3
+        }
+    }
+
+    // ─── Legacy / Other Actions ───────────────────────────────────────────────
+
+    fun markCurrentOutageAsUnknown() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            // Prefer entering Away Mode now instead of just cancelling the outage
+            eventManager.enterAwayMode()
+        }
+    }
+
+    fun startMonitoring() {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            settingsManager.setMonitoringEnabled(true)
+        }
+    }
+
+    // ─── Stats Helpers ────────────────────────────────────────────────────────
+
     private fun buildOnSessions(events: List<PowerEventEntity>): List<OnSession> {
-        if (events.isEmpty()) return emptyList()
         val now = System.currentTimeMillis()
         val todayStart = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
@@ -219,18 +289,29 @@ class HomeViewModel(
         }.timeInMillis
 
         val startOfMonitoringToday = maxOf(todayStart, firstRunTime.value)
+        val sessions = mutableListOf<OnSession>()
+
+        if (events.isEmpty()) {
+            if (powerState.value == PowerState.POWER_ON && now > startOfMonitoringToday) {
+                sessions.add(OnSession(startOfMonitoringToday, now))
+            }
+            return sessions
+        }
 
         val completedOutages = events
             .filter { it.endTime != null }
             .sortedBy { it.startTime }
-
-        val sessions = mutableListOf<OnSession>()
 
         // ON session before first outage
         if (completedOutages.isNotEmpty()) {
             val firstOutageStart = completedOutages.first().startTime
             if (firstOutageStart > startOfMonitoringToday) {
                 sessions.add(OnSession(startOfMonitoringToday, firstOutageStart))
+            }
+        } else {
+            val firstEvent = events.minByOrNull { it.startTime }
+            if (firstEvent != null && firstEvent.startTime > startOfMonitoringToday) {
+                sessions.add(OnSession(startOfMonitoringToday, firstEvent.startTime))
             }
         }
 
@@ -244,14 +325,21 @@ class HomeViewModel(
         }
 
         // ON session after last completed outage (up to now, if power is currently ON)
+        val activeEvent = events.firstOrNull { it.endTime == null }
         if (completedOutages.isNotEmpty()) {
             val lastEnd = completedOutages.last().endTime!!
-            if (powerState.value == PowerState.POWER_ON) {
+            if (activeEvent == null && powerState.value == PowerState.POWER_ON && now > lastEnd) {
                 sessions.add(OnSession(lastEnd, now))
             }
+        } else if (activeEvent != null && activeEvent.startTime > startOfMonitoringToday) {
+            // There's only an active event, and we added the session before it.
+        } else if (activeEvent == null && powerState.value == PowerState.POWER_ON) {
+            // Should be covered by events.isEmpty, but just in case
+            val maxEnd = events.mapNotNull { it.endTime }.maxOrNull() ?: startOfMonitoringToday
+            if (now > maxEnd) sessions.add(OnSession(maxEnd, now))
         }
 
-        return sessions.sortedByDescending { it.endMs }.take(5)
+        return sessions.sortedByDescending { it.endMs } // Return all
     }
 
     private fun calculateStats(events: List<PowerEventEntity>): PowerStats {
@@ -266,28 +354,37 @@ class HomeViewModel(
         val startOfMonitoringToday = maxOf(todayStart, firstRunTime.value)
         val totalTimePassedToday = now - startOfMonitoringToday
         var totalOffTime = 0L
+        var totalAwayTime = 0L
         var longestOutage = 0L
+        var outageCount = 0
 
         events.forEach { event ->
             val start = maxOf(event.startTime, todayStart)
             val end = minOf(event.endTime ?: now, now)
             val duration = end - start
             if (duration > 0) {
-                totalOffTime += duration
-                if (duration > longestOutage) longestOutage = duration
+                if (event.isUnknownGap) {
+                    totalAwayTime += duration
+                } else {
+                    totalOffTime += duration
+                    if (duration > longestOutage) longestOutage = duration
+                    outageCount++
+                }
             }
         }
 
-        val totalOnTime = maxOf(0, totalTimePassedToday - totalOffTime)
-        val availability = if (totalTimePassedToday > 0) (totalOnTime.toFloat() / totalTimePassedToday.toFloat()) * 100f else 100f
+        val totalMonitoredTime = maxOf(0L, totalTimePassedToday - totalAwayTime)
+        val totalOnTime = maxOf(0L, totalMonitoredTime - totalOffTime)
+        val availability = if (totalMonitoredTime > 0) (totalOnTime.toFloat() / totalMonitoredTime.toFloat()) * 100f else 100f
 
         return PowerStats(
             availabilityPercentage = availability,
             totalOnTimeMs = totalOnTime,
             totalOffTimeMs = totalOffTime,
-            outageCount = events.size,
+            totalAwayTimeMs = totalAwayTime,
+            outageCount = outageCount,
             longestOutageMs = longestOutage,
-            averageOutageMs = if (events.isNotEmpty()) totalOffTime / events.size else 0L,
+            averageOutageMs = if (outageCount > 0) totalOffTime / outageCount else 0L,
             peakOutagePeriod = "6 PM - 11 PM"
         )
     }

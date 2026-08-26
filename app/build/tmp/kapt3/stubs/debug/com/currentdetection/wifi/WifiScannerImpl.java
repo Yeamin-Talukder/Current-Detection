@@ -13,17 +13,20 @@ public final class WifiScannerImpl implements com.currentdetection.wifi.WifiScan
     }
     
     @java.lang.Override()
+    @kotlin.Suppress(names = {"DEPRECATION"})
     @android.annotation.SuppressLint(value = {"MissingPermission"})
     @org.jetbrains.annotations.NotNull()
     public kotlinx.coroutines.flow.Flow<java.util.List<com.currentdetection.wifi.ScanResultItem>> scanNearbyNetworks() {
         return null;
     }
     
+    @kotlin.Suppress(names = {"DEPRECATION"})
     private final java.util.List<com.currentdetection.wifi.ScanResultItem> getScanResults() {
         return null;
     }
     
     @java.lang.Override()
+    @kotlin.Suppress(names = {"DEPRECATION"})
     @org.jetbrains.annotations.Nullable()
     public java.lang.String getConnectedBssid() {
         return null;

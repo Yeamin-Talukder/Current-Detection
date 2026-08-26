@@ -35,6 +35,9 @@ import com.currentdetection.ui.components.pressClickEffect
 import com.currentdetection.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import com.currentdetection.wifi.WifiScannerImpl
+import androidx.compose.material.icons.filled.ArrowBack
 
 data class WifiNetworkItem(
     val ssid: String,
@@ -138,35 +141,21 @@ fun AddCheckerScreen(onBack: () -> Unit, onCheckerAdded: () -> Unit) {
     val coroutineScope = rememberCoroutineScope()
     val dao = remember { AppDatabase.getDatabase(context).networkDao() }
 
-    // Get currently connected BSSID
-    val wifiManager = remember {
-        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-    }
-    val connectedBssid = remember {
-        try {
-            val info = wifiManager.connectionInfo
-            val bssid = info?.bssid
-            if (bssid != null && bssid != "02:00:00:00:00:00" && bssid != "<unknown ssid>") bssid else null
-        } catch (e: SecurityException) { null }
-    }
+    val wifiScanner = remember { WifiScannerImpl(context) }
+    val connectedBssid = remember { wifiScanner.getConnectedBssid() }
 
     val scanWifi = {
         isScanning = true
         coroutineScope.launch {
-            wifiManager.startScan()
-            delay(1500)
-            val results = wifiManager.scanResults
-            networks = results.mapNotNull { result ->
-                val ssid = if (result.SSID.isNullOrEmpty()) "Hidden Network" else result.SSID
-                val bssid = result.BSSID ?: return@mapNotNull null
-                val signalLevel = result.level
+            val results = wifiScanner.scanNearbyNetworks().first()
+            networks = results.map { result ->
                 val signal = when {
-                    signalLevel >= -50 -> "Strong"
-                    signalLevel >= -70 -> "Medium"
+                    result.level >= -50 -> "Strong"
+                    result.level >= -70 -> "Medium"
                     else -> "Weak"
                 }
-                val isConn = connectedBssid != null && bssid.equals(connectedBssid, ignoreCase = true)
-                WifiNetworkItem(ssid, bssid, signal, signalLevel, isConn)
+                val isConn = connectedBssid != null && result.bssid.equals(connectedBssid, ignoreCase = true)
+                WifiNetworkItem(result.ssid, result.bssid, signal, result.level, isConn)
             }.distinctBy { it.bssid }.sortedByDescending { it.signalLevel }
             isScanning = false
         }
@@ -205,18 +194,23 @@ fun AddCheckerScreen(onBack: () -> Unit, onCheckerAdded: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        "Add Identifier",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        "Select your building's Wi-Fi network",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MutedText
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onBack, modifier = Modifier.size(36.dp).offset(x = (-8).dp)) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                    Column {
+                        Text(
+                            "Add Identifier",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            "Select your building's Wi-Fi network",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MutedText
+                        )
+                    }
                 }
                 IconButton(
                     onClick = { scanWifi() },

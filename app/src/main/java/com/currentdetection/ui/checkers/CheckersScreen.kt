@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,17 +62,8 @@ fun CheckersScreen(onBack: () -> Unit, onAddChecker: () -> Unit) {
     val networks by dao.getAllNetworks().collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
 
-    // Get currently connected BSSID
-    val wifiManager = remember {
-        context.applicationContext.getSystemService(android.content.Context.WIFI_SERVICE) as WifiManager
-    }
-    val connectedBssid = remember {
-        try {
-            val info = wifiManager.connectionInfo
-            val bssid = info?.bssid
-            if (bssid != null && bssid != "02:00:00:00:00:00" && bssid != "<unknown ssid>") bssid else null
-        } catch (e: SecurityException) { null }
-    }
+    val wifiScanner = remember { com.currentdetection.wifi.WifiScannerImpl(context) }
+    val connectedBssid = remember { wifiScanner.getConnectedBssid() }
 
     Scaffold(
         containerColor = BackgroundColor,
@@ -95,12 +87,24 @@ fun CheckersScreen(onBack: () -> Unit, onAddChecker: () -> Unit) {
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                "Current Identifiers",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(36.dp).offset(x = (-8).dp)
+                ) {
+                    androidx.compose.material3.Icon(
+                        androidx.compose.material.icons.Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
+                Text(
+                    "Current Identifiers",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "Wi-Fi networks used to detect\nwhether current is available.",
